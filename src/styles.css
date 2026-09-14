@@ -93,6 +93,7 @@ a{color:inherit}
 .legend button.off i{opacity:.3}
 .legend i{width:11px;height:11px;border-radius:3px}
 .axis{fill:var(--faint);font-size:11px;font-family:var(--sans)}
+.gbar-val-label{font-size:10px}
 .axis-line{stroke:var(--line);stroke-width:1}
 .axis-zero{stroke:#D2DAE0;stroke-width:1}
 .gridline{stroke:var(--line-2);stroke-width:1}

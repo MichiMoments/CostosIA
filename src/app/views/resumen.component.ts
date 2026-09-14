@@ -59,7 +59,7 @@ import { SafeHtmlPipe } from '../shared/safe-html.pipe';
 
     <div class="card pad" style="margin-bottom:20px">
       <div class="card-h">Consumo mensual por ambiente</div>
-      <div class="card-sub">Ene 2025 - {{ mesLabel() }} 2026 &middot; todas las unidades</div>
+      <div class="card-sub">Últimos 3 meses &middot; todas las unidades</div>
       <app-stacked-area [timeline]="timeline()" [series]="areaSeries()"/>
       <div class="legend-inline">
         @for (e of envDefs; track e.label) {
@@ -211,7 +211,7 @@ export class ResumenComponent {
     for (let i = 0; i < n; i++) {
       pts.push({ lab: m[i], full: m[i] + ' 2026', partial: st[i] === 'partial' });
     }
-    return pts;
+    return pts.slice(-3);
   });
 
   readonly areaSeries = computed<ChartSeries[]>(() => {
@@ -220,7 +220,7 @@ export class ResumenComponent {
     return ENVS.map(e => ({
       name: e.label,
       hex: e.hex,
-      data: [...gen['2025'][e.gk], ...gen['2026'][e.gk].slice(0, n)],
+      data: [...gen['2025'][e.gk], ...gen['2026'][e.gk].slice(0, n)].slice(-3),
     }));
   });
 

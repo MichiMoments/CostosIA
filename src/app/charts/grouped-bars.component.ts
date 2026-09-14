@@ -12,7 +12,7 @@ interface GBarDatum {
   bars: {
     x: number; y: number; w: number; h: number;
     hex: string; opacity: number; dash: string;
-    labelY: number; labelText: string;
+    labelX: number; labelY: number; labelText: string; anchor: string;
     tip: string;
   }[];
   legend: { hex: string; name: string }[];
@@ -43,8 +43,8 @@ interface GBarDatum {
                   [attr.stroke]="b.hex" stroke-width="1.5"
                   [attr.stroke-dasharray]="b.dash"
                   rx="3" [appTooltip]="b.tip"/>
-            <text class="axis" text-anchor="middle"
-              [attr.x]="b.x + b.w / 2" [attr.y]="b.labelY">{{ b.labelText }}</text>
+            <text class="axis gbar-val-label" [attr.text-anchor]="b.anchor"
+              [attr.x]="b.labelX" [attr.y]="b.labelY">{{ b.labelText }}</text>
           }
           <!-- x-axis labels -->
           @for (xl of d.xLabels; track xl.x) {
@@ -110,7 +110,7 @@ export class GroupedBarsComponent {
       bars.push({
         x: axL, y: ay, w: barW, h: ah,
         hex: a.hex, opacity: 1, dash: '',
-        labelY: ay - 5, labelText: usd0(a.value),
+        labelX: axL + barW, labelY: ay - 5, labelText: usd0(a.value), anchor: 'end',
         tip: `<div class="tt-h">${grps[i]}</div><div class="tt-r"><span>${names[0]}</span><span class="num">${usd0(a.value)}</span></div>`,
       });
 
@@ -122,7 +122,7 @@ export class GroupedBarsComponent {
       bars.push({
         x: bxL, y: by, w: barW, h: bh,
         hex: b.hex, opacity: partial ? 0.45 : 1, dash: partial ? '4 3' : '',
-        labelY: by - 5, labelText: usd0(b.value),
+        labelX: bxL, labelY: by - 5, labelText: usd0(b.value), anchor: 'start',
         tip: `<div class="tt-h">${grps[i]}${partial ? ' &middot; parcial' : ''}</div><div class="tt-r"><span>${names[1]}</span><span class="num">${usd0(b.value)}</span></div>`,
       });
     }
