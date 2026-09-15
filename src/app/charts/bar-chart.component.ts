@@ -4,7 +4,7 @@ import {
 import { TooltipDirective } from '../shared/tooltip.directive';
 import { TimelinePoint } from '../core/costos.types';
 import { niceMax } from '../core/chart.utils';
-import { usd0 } from '../core/format.utils';
+import { usd2 } from '../core/format.utils';
 
 interface BarDatum {
   gridLines: { y: number; label: string }[];
@@ -80,7 +80,7 @@ export class BarChartComponent {
     // gridlines (0, 25, 50, 75, 100%)
     const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
       const val = maxVal * f;
-      return { y: scaleY(val), label: usd0(val) };
+      return { y: scaleY(val), label: usd2(val) };
     });
 
     // bars
@@ -100,8 +100,8 @@ export class BarChartComponent {
         opacity: partial ? 0.45 : 1,
         dash: partial ? '4 3' : '',
         labelY: by - 6,
-        labelText: usd0(v),
-        tip: `<div class="tt-h">${tp.full}${partial ? ' &middot; parcial' : ''}</div><div class="tt-r"><span>Costo</span><span class="num">${usd0(v)}</span></div>`,
+        labelText: usd2(v),
+        tip: `<div class="tt-h">${tp.full}${partial ? ' &middot; parcial' : ''}</div><div class="tt-r"><span>Costo</span><span class="num">${usd2(v)}</span></div>`,
       };
     });
 

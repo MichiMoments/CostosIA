@@ -4,7 +4,7 @@ import {
 import { TooltipDirective } from '../shared/tooltip.directive';
 import { GroupedBarItem } from '../core/costos.types';
 import { niceMax } from '../core/chart.utils';
-import { usd0 } from '../core/format.utils';
+import { usd2 } from '../core/format.utils';
 
 interface GBarDatum {
   gridLines: { y: number; label: string }[];
@@ -93,7 +93,7 @@ export class GroupedBarsComponent {
     // gridlines
     const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
       const val = maxVal * f;
-      return { y: scaleY(val), label: usd0(val) };
+      return { y: scaleY(val), label: usd2(val) };
     });
 
     // bars
@@ -110,8 +110,8 @@ export class GroupedBarsComponent {
       bars.push({
         x: axL, y: ay, w: barW, h: ah,
         hex: a.hex, opacity: 1, dash: '',
-        labelX: axL + barW, labelY: ay - 5, labelText: usd0(a.value), anchor: 'end',
-        tip: `<div class="tt-h">${grps[i]}</div><div class="tt-r"><span>${names[0]}</span><span class="num">${usd0(a.value)}</span></div>`,
+        labelX: axL + barW, labelY: ay - 5, labelText: usd2(a.value), anchor: 'end',
+        tip: `<div class="tt-h">${grps[i]}</div><div class="tt-r"><span>${names[0]}</span><span class="num">${usd2(a.value)}</span></div>`,
       });
 
       // bar B (right)
@@ -122,8 +122,8 @@ export class GroupedBarsComponent {
       bars.push({
         x: bxL, y: by, w: barW, h: bh,
         hex: b.hex, opacity: partial ? 0.45 : 1, dash: partial ? '4 3' : '',
-        labelX: bxL, labelY: by - 5, labelText: usd0(b.value), anchor: 'start',
-        tip: `<div class="tt-h">${grps[i]}${partial ? ' &middot; parcial' : ''}</div><div class="tt-r"><span>${names[1]}</span><span class="num">${usd0(b.value)}</span></div>`,
+        labelX: bxL, labelY: by - 5, labelText: usd2(b.value), anchor: 'start',
+        tip: `<div class="tt-h">${grps[i]}${partial ? ' &middot; parcial' : ''}</div><div class="tt-r"><span>${names[1]}</span><span class="num">${usd2(b.value)}</span></div>`,
       });
     }
 

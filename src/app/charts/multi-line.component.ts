@@ -4,7 +4,7 @@ import {
 import { TooltipDirective } from '../shared/tooltip.directive';
 import { TimelinePoint, ChartSeries } from '../core/costos.types';
 import { niceMax } from '../core/chart.utils';
-import { usd0 } from '../core/format.utils';
+import { usd2 } from '../core/format.utils';
 
 interface MLDatum {
   gridLines: { y: number; label: string }[];
@@ -91,7 +91,7 @@ export class MultiLineComponent {
     // gridlines
     const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
       const val = maxVal * f;
-      return { y: scaleY(val), label: usd0(val) };
+      return { y: scaleY(val), label: usd2(val) };
     });
 
     // line paths
@@ -129,7 +129,7 @@ export class MultiLineComponent {
     const columns = tl.map((tp, i) => {
       const rows = visible.map(s => {
         const v = s.data[i] || 0;
-        return `<div class="tt-r"><span><i style="background:${s.hex}"></i>${s.name}</span><span class="num">${usd0(v)}</span></div>`;
+        return `<div class="tt-r"><span><i style="background:${s.hex}"></i>${s.name}</span><span class="num">${usd2(v)}</span></div>`;
       }).join('');
       const tip =
         `<div class="tt-h">${tp.full}${tp.partial ? ' &middot; parcial' : ''}</div>` + rows;

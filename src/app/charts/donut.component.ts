@@ -4,7 +4,7 @@ import {
 import { TooltipDirective } from '../shared/tooltip.directive';
 import { DonutItem } from '../core/costos.types';
 import { sum } from '../core/chart.utils';
-import { usd0, fmt2 } from '../core/format.utils';
+import { usd2, fmt2 } from '../core/format.utils';
 
 interface DonutDatum {
   slices: { d: string; hex: string; tip: string }[];
@@ -88,7 +88,7 @@ export class DonutComponent {
       ].join(' ');
 
       const pct = total > 0 ? (item.value / total * 100) : 0;
-      const tip = `<div class="tt-h">${item.label}</div><div class="tt-r"><span>Costo</span><span class="num">${usd0(item.value)}</span></div><div class="tt-r"><span>Participaci&oacute;n</span><span class="num">${fmt2(pct)}%</span></div>`;
+      const tip = `<div class="tt-h">${item.label}</div><div class="tt-r"><span>Costo</span><span class="num">${usd2(item.value)}</span></div><div class="tt-r"><span>Participaci&oacute;n</span><span class="num">${fmt2(pct)}%</span></div>`;
 
       slices.push({ d, hex: item.hex, tip });
       angle = a2;
@@ -101,7 +101,7 @@ export class DonutComponent {
 
     return {
       slices,
-      total: usd0(total),
+      total: '$' + fmt2(total),
       legendItems,
     };
   });

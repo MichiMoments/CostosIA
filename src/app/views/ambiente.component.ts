@@ -4,7 +4,7 @@ import {
 import { DataService } from '../core/data.service';
 import { TimelinePoint, BarItem } from '../core/costos.types';
 import { AMB, sum } from '../core/chart.utils';
-import { usd0 } from '../core/format.utils';
+import { usd2 } from '../core/format.utils';
 import { BarChartComponent } from '../charts/bar-chart.component';
 import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
 import { AiSummaryComponent } from '../shared/ai-summary.component';
@@ -141,7 +141,7 @@ export class AmbienteComponent {
   });
 
   readonly total = computed(() => sum(this.monthly()));
-  readonly totalFmt = computed(() => usd0(this.total()));
+  readonly totalFmt = computed(() => usd2(this.total()));
 
   readonly peakIdx = computed(() => {
     const m = this.monthly();
@@ -153,7 +153,7 @@ export class AmbienteComponent {
   });
 
   readonly peakMonthLabel = computed(() => this.ds.meses()[this.peakIdx()]);
-  readonly peakMonthValue = computed(() => usd0(this.monthly()[this.peakIdx()]));
+  readonly peakMonthValue = computed(() => usd2(this.monthly()[this.peakIdx()]));
 
   readonly serviceCount = computed(() => this.svcs().length);
 
@@ -211,6 +211,6 @@ export class AmbienteComponent {
   });
 
   fmtUsd(v: number): string {
-    return usd0(v);
+    return usd2(v);
   }
 }

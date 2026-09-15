@@ -4,7 +4,7 @@ import {
 import { TooltipDirective } from '../shared/tooltip.directive';
 import { BarItem } from '../core/costos.types';
 import { niceMax } from '../core/chart.utils';
-import { usd0 } from '../core/format.utils';
+import { usd2 } from '../core/format.utils';
 
 interface HBarDatum {
   svgH: number;
@@ -73,9 +73,9 @@ export class HorizontalBarsComponent {
         barW: bw,
         barH: bh,
         color: item.color,
-        valueLabel: usd0(item.value),
+        valueLabel: usd2(item.value),
         valueLabelX: barLeft + bw + 8,
-        tip: `<div class="tt-h">${item.label}</div><div class="tt-r"><span>Costo</span><span class="num">${usd0(item.value)}</span></div>${subText}`,
+        tip: `<div class="tt-h">${item.label}</div><div class="tt-r"><span>Costo</span><span class="num">${usd2(item.value)}</span></div>${subText}`,
       };
     });
 

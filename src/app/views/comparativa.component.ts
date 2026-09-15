@@ -4,7 +4,7 @@ import {
 import { DataService } from '../core/data.service';
 import { TimelinePoint, GroupedBarItem } from '../core/costos.types';
 import { ENVS, sumRange } from '../core/chart.utils';
-import { usd0, fmt2 } from '../core/format.utils';
+import { usd2, fmt2 } from '../core/format.utils';
 import { GroupedBarsComponent } from '../charts/grouped-bars.component';
 import { BarChartComponent } from '../charts/bar-chart.component';
 import { AiSummaryComponent } from '../shared/ai-summary.component';
@@ -232,10 +232,10 @@ export class ComparativaComponent {
       const dPct = a[i] !== 0 ? dUsd / a[i] * 100 : 0;
       rows.push({
         mes: m[i],
-        v25: usd0(a[i]),
-        v26: usd0(b[i]),
+        v25: usd2(a[i]),
+        v26: usd2(b[i]),
         dUsd,
-        dUsdFmt: usd0(Math.abs(dUsd)),
+        dUsdFmt: usd2(Math.abs(dUsd)),
         dPct,
         dPctFmt: fmt2(Math.abs(dPct)) + '%',
       });
@@ -250,10 +250,10 @@ export class ComparativaComponent {
     const dUsd = s26 - s25;
     const dPct = s25 !== 0 ? dUsd / s25 * 100 : 0;
     return {
-      v25: usd0(s25),
-      v26: usd0(s26),
+      v25: usd2(s25),
+      v26: usd2(s26),
       dUsd,
-      dUsdFmt: usd0(Math.abs(dUsd)),
+      dUsdFmt: usd2(Math.abs(dUsd)),
       dPct,
       dPctFmt: fmt2(Math.abs(dPct)) + '%',
     };
@@ -277,7 +277,7 @@ export class ComparativaComponent {
       const dPct = prev !== 0 ? (val - prev) / prev * 100 : 0;
       kpis.push({
         mes: m[i] + ' 2026',
-        valFmt: usd0(val),
+        valFmt: usd2(val),
         prevMes: m[i - 1],
         dPct,
         dPctFmt: fmt2(Math.abs(dPct)) + '%',
@@ -320,10 +320,10 @@ export class ComparativaComponent {
       const dPct = prev !== 0 ? dUsd / prev * 100 : 0;
       rows.push({
         mes: m[i] + ' 2026',
-        valFmt: usd0(val),
-        prevFmt: usd0(prev),
+        valFmt: usd2(val),
+        prevFmt: usd2(prev),
         dUsd,
-        dUsdFmt: usd0(Math.abs(dUsd)),
+        dUsdFmt: usd2(Math.abs(dUsd)),
         dPct,
         dPctFmt: fmt2(Math.abs(dPct)) + '%',
       });

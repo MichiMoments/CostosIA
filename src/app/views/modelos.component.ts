@@ -6,7 +6,7 @@ import {
   TimelinePoint, ChartSeries, BarItem,
 } from '../core/costos.types';
 import { TOOLS, PAL, sum } from '../core/chart.utils';
-import { usd0, usd2 } from '../core/format.utils';
+import { usd2 } from '../core/format.utils';
 import { MultiLineComponent } from '../charts/multi-line.component';
 import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
 @Component({
@@ -215,7 +215,7 @@ export class ModelosComponent {
 
   readonly total = computed(() =>
     this.filteredRows().reduce((s, r) => s + r.total, 0));
-  readonly totalFmt = computed(() => usd0(this.total()));
+  readonly totalFmt = computed(() => usd2(this.total()));
 
   readonly topFamily = computed(() => {
     const rows = this.filteredRows();
@@ -236,14 +236,14 @@ export class ModelosComponent {
     const rows = this.filteredRows();
     const fam = this.topFamily();
     const val = rows.filter(r => r.fam === fam).reduce((s, r) => s + r.total, 0);
-    return usd0(val);
+    return usd2(val);
   });
 
   readonly chatMigoFmt = computed(() => {
     const models = this.ds.models();
     const year = this.selectedYear();
     const rows = (models[year] ?? []).filter(r => r.tool === 'ChatMigo');
-    return usd0(rows.reduce((s, r) => s + r.total, 0));
+    return usd2(rows.reduce((s, r) => s + r.total, 0));
   });
 
   /* --- Time series shared --- */
@@ -332,11 +332,11 @@ export class ModelosComponent {
 
   readonly ioEntradaFmt = computed(() => {
     const s = this.ioSeries();
-    return usd0(sum(s[0].data));
+    return usd2(sum(s[0].data));
   });
   readonly ioSalidaFmt = computed(() => {
     const s = this.ioSeries();
-    return usd0(sum(s[1].data));
+    return usd2(sum(s[1].data));
   });
   readonly ioRatio = computed(() => {
     const s = this.ioSeries();

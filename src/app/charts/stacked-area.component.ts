@@ -4,7 +4,7 @@ import {
 import { TooltipDirective } from '../shared/tooltip.directive';
 import { TimelinePoint, ChartSeries } from '../core/costos.types';
 import { niceMax, sum } from '../core/chart.utils';
-import { usd0 } from '../core/format.utils';
+import { usd2 } from '../core/format.utils';
 
 interface AreaDatum {
   paths: { d: string; hex: string }[];
@@ -94,7 +94,7 @@ export class StackedAreaComponent {
     // gridlines (0, 25, 50, 75, 100%)
     const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
       const val = maxVal * f;
-      return { y: scaleY(val), label: usd0(val) };
+      return { y: scaleY(val), label: usd2(val) };
     });
 
     // area paths (bottom to top, render bottom-most last so it's on top)
@@ -130,12 +130,12 @@ export class StackedAreaComponent {
       const total = stacked[i][sr.length];
       const rows = sr.map((s, si) => {
         const v = s.data[i] || 0;
-        return `<div class="tt-r"><span><i style="background:${s.hex}"></i>${s.name}</span><span class="num">${usd0(v)}</span></div>`;
+        return `<div class="tt-r"><span><i style="background:${s.hex}"></i>${s.name}</span><span class="num">${usd2(v)}</span></div>`;
       }).join('');
       const tip =
         `<div class="tt-h">${tp.full}${tp.partial ? ' &middot; parcial' : ''}</div>` +
         rows +
-        `<div class="tt-r" style="border-top:1px solid rgba(255,255,255,.15);margin-top:4px;padding-top:4px"><span>Total</span><span class="num">${usd0(total)}</span></div>`;
+        `<div class="tt-r" style="border-top:1px solid rgba(255,255,255,.15);margin-top:4px;padding-top:4px"><span>Total</span><span class="num">${usd2(total)}</span></div>`;
 
       return {
         x,

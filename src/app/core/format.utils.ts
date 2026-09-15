@@ -1,6 +1,6 @@
 const nf0 = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const nf4 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const nf4 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function usd0(n: number): string {
   return 'US$ ' + nf0.format(n || 0);

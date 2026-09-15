@@ -6,7 +6,7 @@ import {
   TimelinePoint, ChartSeries, GroupedBarItem, DonutItem,
 } from '../core/costos.types';
 import { ENVS, annual, sumRange } from '../core/chart.utils';
-import { usd0, pct, fmt2 } from '../core/format.utils';
+import { usd2, pct, fmt2 } from '../core/format.utils';
 import { StackedAreaComponent } from '../charts/stacked-area.component';
 import { GroupedBarsComponent } from '../charts/grouped-bars.component';
 import { DonutComponent } from '../charts/donut.component';
@@ -171,15 +171,15 @@ export class ResumenComponent {
     return p25 !== 0 ? (this.p26() - p25) / p25 * 100 : 0;
   });
 
-  readonly t25Fmt = computed(() => usd0(this.t25()));
-  readonly t26Fmt = computed(() => usd0(this.t26()));
+  readonly t25Fmt = computed(() => usd2(this.t25()));
+  readonly t26Fmt = computed(() => usd2(this.t26()));
   readonly yoyFmt = computed(() => pct(this.yoy()));
 
   readonly chips = computed(() =>
     ENVS.map(e => ({
       label: e.label,
       hex: e.hex,
-      val: usd0(annual(this.general(), '2026', e.gk)),
+      val: usd2(annual(this.general(), '2026', e.gk)),
     })),
   );
 
@@ -201,12 +201,12 @@ export class ResumenComponent {
       ? mRows.reduce((a, b) => b.total > a.total ? b : a)
       : null;
 
-    let text = `<b>Lectura ejecutiva:</b> El mayor consumo 2026 es <b>${top.label}</b> con <b>${usd0(top.total)}</b>.`;
+    let text = `<b>Lectura ejecutiva:</b> El mayor consumo 2026 es <b>${top.label}</b> con <b>${usd2(top.total)}</b>.`;
     if (qa25 > 0) {
       text += ` QA ${qaGrowth >= 0 ? 'crece' : 'decrece'} <b>${fmt2(Math.abs(qaGrowth))}%</b> vs 2025.`;
     }
     if (topMeter) {
-      text += ` El meter de mayor consumo en modelos es <b>${topMeter.meter}</b> (${usd0(topMeter.total)}).`;
+      text += ` El meter de mayor consumo en modelos es <b>${topMeter.meter}</b> (${usd2(topMeter.total)}).`;
     }
     return text;
   });
@@ -267,9 +267,9 @@ export class ResumenComponent {
       return {
         label: e.label,
         hex: e.hex,
-        v25: usd0(v25),
+        v25: usd2(v25),
         p25: fmt2(t25 > 0 ? v25 / t25 * 100 : 0) + '%',
-        v26: usd0(v26),
+        v26: usd2(v26),
         p26: fmt2(t26 > 0 ? v26 / t26 * 100 : 0) + '%',
       };
     });

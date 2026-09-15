@@ -37,7 +37,7 @@ a{color:inherit}
 .badge-partial .pt{width:7px;height:7px;border-radius:50%;background:var(--qa)}
 .badge-neutral{display:inline-flex;align-items:center;gap:7px;background:#EAF2EE;color:#2E6F5A;border:1px solid #CDE5DB;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:500}
 .badge-neutral .pt{width:7px;height:7px;border-radius:50%;background:var(--prod)}
-.content{padding:26px 30px 60px;max-width:1180px}
+.content{padding:26px 30px 60px}
 
 /* ---------- Animations ---------- */
 @keyframes fade{from{opacity:0}to{opacity:1}}
