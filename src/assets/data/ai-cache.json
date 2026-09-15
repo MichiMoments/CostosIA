@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-09-14T22:25:24.988667+00:00",
+  "chart1": "El ambiente de Produccion domina el gasto acumulado con 13493. 89 USD, representando el 34.",
+  "chart2": "El ambiente de QA registro el mayor crecimiento con un incremento del 765.1 por ciento, pasando de 522.3",
+  "chart3_desarrollo": "El mes con mayor gasto fue mayo con 662.64 USD, que representa el 15.5% del total del periodo",
+  "chart3_qa": "El pico de gasto ocurrió en mayo de 2026 con 1037 USD. Posteriormente la tendencia disminuye considerablemente.",
+  "chart3_produccion": "El mes de mayor gasto fue mayo con 1439.28 USD, representando el 18.9% del total",
+  "chart4_total": "El gasto de marzo es de septiembre muestra mayor disparidad, previamente representando 4123 USD.",
+  "chart5_total": "El gasto de ChatMigo muestra una tendencia a la baja muy pronunciada en el trimestre, registrando 3273.4",
+  "chart4_desarrollo": "El gasto muestra un tendencia opuesta en el ultimo trimestre",
+  "chart5_desarrollo": "El gasto de estos tres meses muestra una clara tendencia a la baja, registrando 370.21 USD en julio",
+  "chart4_qa": "Los dos meses con mayor diferencia absoluta fueron mayo, con un aumento de 1036.58 USD, y abril.",
+  "chart5_qa": "El gasto en QA muestra una clara tendencia a la baja durante el trimestre, registrando 91.44 USD en julio, 3",
+  "chart4_produccion": "Los dos meses con mayor diferencia absoluta fueron abril, con un aumento de 1216.96 USD",
+  "chart5_produccion": "La tendencia del gasto en estos tres meses es claramente a la baja, registrando 454.75 USD en julio, 33",
+  "chart4_modelos": "Los ultimos tres meses muestran mejoras de costos sustanciales",
+  "chart5_modelos": "El gasto en modelos muestra una tendencia a la baja muy pronunciada durante el trimestre, registrando 2357."
+}

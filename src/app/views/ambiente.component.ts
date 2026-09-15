@@ -7,10 +7,11 @@ import { AMB, sum } from '../core/chart.utils';
 import { usd0 } from '../core/format.utils';
 import { BarChartComponent } from '../charts/bar-chart.component';
 import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
+import { AiSummaryComponent } from '../shared/ai-summary.component';
 @Component({
   selector: 'app-ambiente',
   standalone: true,
-  imports: [BarChartComponent, HorizontalBarsComponent],
+  imports: [BarChartComponent, HorizontalBarsComponent, AiSummaryComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     :host { display: block; }
@@ -51,11 +52,23 @@ import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
       </div>
     </div>
 
-    <div class="card pad" style="margin-bottom:20px">
-      <div class="card-h">Costo mensual &middot; {{ amb().label }}</div>
-      <div class="card-sub">{{ selectedYear() }} &middot; {{ nm() }} meses</div>
-      <app-bar-chart [months]="barMonths()" [data]="barData()" [color]="amb().hex"/>
-      <div class="note">Valores en USD por mes.</div>
+    <div class="card" [class.pad]="selectedYear() !== '2026'" [class.has-ai]="selectedYear() === '2026'" style="margin-bottom:20px">
+      @if (selectedYear() === '2026') {
+        <div class="chart-section">
+          <div class="card-h">Costo mensual &middot; {{ amb().label }}</div>
+          <div class="card-sub">{{ selectedYear() }} &middot; {{ nm() }} meses</div>
+          <app-bar-chart [months]="barMonths()" [data]="barData()" [color]="amb().hex"/>
+          <div class="note">Valores en USD por mes.</div>
+        </div>
+        <app-ai-summary
+          chartTitle="Costo mensual"
+          [cacheKey]="chart3CacheKey()"/>
+      } @else {
+        <div class="card-h">Costo mensual &middot; {{ amb().label }}</div>
+        <div class="card-sub">{{ selectedYear() }} &middot; {{ nm() }} meses</div>
+        <app-bar-chart [months]="barMonths()" [data]="barData()" [color]="amb().hex"/>
+        <div class="note">Valores en USD por mes.</div>
+      }
     </div>
 
     <div class="card pad" style="margin-bottom:20px">
@@ -161,6 +174,9 @@ export class AmbienteComponent {
   });
 
   readonly barData = computed(() => this.monthly());
+
+  private static readonly AMB_KEYS = ['desarrollo', 'qa', 'produccion'];
+  readonly chart3CacheKey = computed(() => `chart3_${AmbienteComponent.AMB_KEYS[this.selectedEnv()]}`);
 
   readonly hBarItems = computed<BarItem[]>(() =>
     this.svcs().map(s => ({

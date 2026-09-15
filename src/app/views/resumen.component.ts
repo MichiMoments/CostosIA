@@ -11,10 +11,11 @@ import { StackedAreaComponent } from '../charts/stacked-area.component';
 import { GroupedBarsComponent } from '../charts/grouped-bars.component';
 import { DonutComponent } from '../charts/donut.component';
 import { SafeHtmlPipe } from '../shared/safe-html.pipe';
+import { AiSummaryComponent } from '../shared/ai-summary.component';
 @Component({
   selector: 'app-resumen',
   standalone: true,
-  imports: [StackedAreaComponent, GroupedBarsComponent, DonutComponent, SafeHtmlPipe],
+  imports: [StackedAreaComponent, GroupedBarsComponent, DonutComponent, SafeHtmlPipe, AiSummaryComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     :host { display: block; }
@@ -57,16 +58,21 @@ import { SafeHtmlPipe } from '../shared/safe-html.pipe';
       }
     </div>
 
-    <div class="card pad" style="margin-bottom:20px">
-      <div class="card-h">Consumo mensual por ambiente</div>
-      <div class="card-sub">Últimos 3 meses &middot; todas las unidades</div>
-      <app-stacked-area [timeline]="timeline()" [series]="areaSeries()"/>
-      <div class="legend-inline">
-        @for (e of envDefs; track e.label) {
-          <span><i [style.background]="e.hex"></i>{{ e.label }}</span>
-        }
+    <div class="card has-ai" style="margin-bottom:20px">
+      <div class="chart-section">
+        <div class="card-h">Consumo mensual por ambiente</div>
+        <div class="card-sub">2025 completo + 2026 a {{ mesLabel() }} &middot; todas las unidades</div>
+        <app-stacked-area [timeline]="timeline()" [series]="areaSeries()"/>
+        <div class="legend-inline">
+          @for (e of envDefs; track e.label) {
+            <span><i [style.background]="e.hex"></i>{{ e.label }}</span>
+          }
+        </div>
+        <div class="note">Los valores representan costos mensuales en USD. Las barras con borde punteado indican meses con datos parciales.</div>
       </div>
-      <div class="note">Los valores representan costos mensuales en USD. Las barras con borde punteado indican meses con datos parciales.</div>
+      <app-ai-summary
+        chartTitle="Consumo mensual por ambiente"
+        cacheKey="chart1"/>
     </div>
 
     <div class="two" style="margin-bottom:20px">
@@ -84,14 +90,19 @@ import { SafeHtmlPipe } from '../shared/safe-html.pipe';
       <b>Consolidado anual:</b> comparativa del gasto total por ambiente entre 2025 completo y 2026 acumulado a {{ mesLabel() }}.
     </div>
 
-    <div class="card pad" style="margin-bottom:20px">
-      <div class="card-h">Comparativa anual por ambiente</div>
-      <div class="card-sub">2025 completo vs 2026 a {{ mesLabel() }}</div>
-      <app-grouped-bars
-        [groups]="annualGroups()"
-        [seriesA]="annualA()"
-        [seriesB]="annualB()"
-        [legendNames]="['2025','2026']"/>
+    <div class="card has-ai" style="margin-bottom:20px">
+      <div class="chart-section">
+        <div class="card-h">Comparativa anual por ambiente</div>
+        <div class="card-sub">2025 completo vs 2026 a {{ mesLabel() }}</div>
+        <app-grouped-bars
+          [groups]="annualGroups()"
+          [seriesA]="annualA()"
+          [seriesB]="annualB()"
+          [legendNames]="['2025','2026']"/>
+      </div>
+      <app-ai-summary
+        chartTitle="Comparativa anual por ambiente"
+        cacheKey="chart2"/>
     </div>
 
     <div class="tbl-wrap" style="margin-bottom:20px">
@@ -211,7 +222,7 @@ export class ResumenComponent {
     for (let i = 0; i < n; i++) {
       pts.push({ lab: m[i], full: m[i] + ' 2026', partial: st[i] === 'partial' });
     }
-    return pts.slice(-3);
+    return pts;
   });
 
   readonly areaSeries = computed<ChartSeries[]>(() => {
@@ -220,7 +231,7 @@ export class ResumenComponent {
     return ENVS.map(e => ({
       name: e.label,
       hex: e.hex,
-      data: [...gen['2025'][e.gk], ...gen['2026'][e.gk].slice(0, n)].slice(-3),
+      data: [...gen['2025'][e.gk], ...gen['2026'][e.gk].slice(0, n)],
     }));
   });
 

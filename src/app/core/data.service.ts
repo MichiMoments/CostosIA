@@ -1,10 +1,12 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { CostosData } from './costos.types';
 import costosData from '../../assets/data/costos.json';
+import aiCacheData from '../../assets/data/ai-cache.json';
 
 @Injectable({ providedIn: 'root' })
 export class DataService {
   readonly data = signal<CostosData>(costosData as CostosData);
+  readonly aiCache = signal<Record<string, string>>(aiCacheData as Record<string, string>);
 
   readonly meses = computed(() => this.data().meta.meses);
   readonly lastData2026 = computed(() => this.data().meta.lastData2026);

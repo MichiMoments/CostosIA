@@ -7,10 +7,11 @@ import { ENVS, sumRange } from '../core/chart.utils';
 import { usd0, fmt2 } from '../core/format.utils';
 import { GroupedBarsComponent } from '../charts/grouped-bars.component';
 import { BarChartComponent } from '../charts/bar-chart.component';
+import { AiSummaryComponent } from '../shared/ai-summary.component';
 @Component({
   selector: 'app-comparativa',
   standalone: true,
-  imports: [GroupedBarsComponent, BarChartComponent],
+  imports: [GroupedBarsComponent, BarChartComponent, AiSummaryComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     :host { display: block; }
@@ -29,12 +30,17 @@ import { BarChartComponent } from '../charts/bar-chart.component';
     <h3 class="sec-title"><span class="sq" style="background:var(--dev)"></span>Año contra año</h3>
     <p class="sec-desc">Comparativa mensual de los primeros {{ n26() }} meses entre 2025 y 2026 &middot; {{ envLabel() }}</p>
 
-    <div class="card pad" style="margin-bottom:20px">
-      <app-grouped-bars
-        [groups]="yoyGroups()"
-        [seriesA]="yoyA()"
-        [seriesB]="yoyB()"
-        [legendNames]="['2025','2026']"/>
+    <div class="card has-ai" style="margin-bottom:20px">
+      <div class="chart-section">
+        <app-grouped-bars
+          [groups]="yoyGroups()"
+          [seriesA]="yoyA()"
+          [seriesB]="yoyB()"
+          [legendNames]="['2025','2026']"/>
+      </div>
+      <app-ai-summary
+        chartTitle="Año contra año"
+        [cacheKey]="chart4CacheKey()"/>
     </div>
 
     <div class="tbl-wrap" style="margin-bottom:30px">
@@ -107,10 +113,15 @@ import { BarChartComponent } from '../charts/bar-chart.component';
       }
     </div>
 
-    <div class="card pad" style="margin-bottom:20px">
-      <div class="card-h">Evolución mensual 2026</div>
-      <div class="card-sub">{{ envLabel() }}</div>
-      <app-bar-chart [months]="momBarMonths()" [data]="momBarData()" [color]="momBarColor()"/>
+    <div class="card has-ai" style="margin-bottom:20px">
+      <div class="chart-section">
+        <div class="card-h">Evolución mensual 2026</div>
+        <div class="card-sub">Últimos 3 meses &middot; {{ envLabel() }}</div>
+        <app-bar-chart [months]="momBarMonths()" [data]="momBarData()" [color]="momBarColor()"/>
+      </div>
+      <app-ai-summary
+        chartTitle="Evolución mensual 2026"
+        [cacheKey]="chart5CacheKey()"/>
     </div>
 
     <div class="tbl-wrap">
@@ -248,6 +259,9 @@ export class ComparativaComponent {
     };
   });
 
+  private static readonly ENV_KEYS = ['total', 'desarrollo', 'qa', 'produccion', 'modelos'];
+  readonly chart4CacheKey = computed(() => `chart4_${ComparativaComponent.ENV_KEYS[this.selectedEnv() + 1]}`);
+
   /* --- MoM --- */
   readonly momKpis = computed(() => {
     const m = this.meses();
@@ -281,15 +295,17 @@ export class ComparativaComponent {
     for (let i = 0; i < n; i++) {
       pts.push({ lab: m[i], full: m[i] + ' 2026', partial: st[i] === 'partial' });
     }
-    return pts;
+    return pts.slice(-3);
   });
 
-  readonly momBarData = computed(() => this.d26().slice(0, this.n26()));
+  readonly momBarData = computed(() => this.d26().slice(0, this.n26()).slice(-3));
 
   readonly momBarColor = computed(() => {
     const idx = this.selectedEnv();
     return idx < 0 ? '#5FBFA0' : ENVS[idx].hex;
   });
+
+  readonly chart5CacheKey = computed(() => `chart5_${ComparativaComponent.ENV_KEYS[this.selectedEnv() + 1]}`);
 
   readonly momRows = computed(() => {
     const m = this.meses();
