@@ -55,6 +55,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "allowedHosts": ["magical-handshake-sustained.ngrok-free.dev"]
+          },
           "configurations": {
             "production": {
               "buildTarget": "costos:build:production"
