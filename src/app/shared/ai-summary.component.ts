@@ -36,12 +36,21 @@ import { AiService } from '../core/ai.service';
       color: var(--text, #17242F);
       flex: 1;
       overflow-y: auto;
-      white-space: pre-line;
+    }
+    .ai-body p {
+      margin: 0 0 12px;
+    }
+    .ai-body p:last-child {
+      margin-bottom: 0;
     }
   `],
   template: `
     <div class="ai-h"><span class="dot"></span>Análisis IA</div>
-    <div class="ai-body">{{ result() }}</div>
+    <div class="ai-body">
+      @for (paragraph of paragraphs(); track $index) {
+        <p>{{ paragraph }}</p>
+      }
+    </div>
   `,
 })
 export class AiSummaryComponent {
@@ -51,4 +60,11 @@ export class AiSummaryComponent {
   readonly chartTitle = input.required<string>();
 
   readonly result = computed(() => this.ai.getCachedAnalysis(this.cacheKey()));
+
+  readonly paragraphs = computed(() =>
+    this.result()
+      .split('\n')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
+  );
 }
