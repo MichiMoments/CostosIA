@@ -34,28 +34,23 @@ if not all([TENANT_ID, CLIENT_ID, CLIENT_SECRET]):
     print("   AZURE_CLIENT_SECRET=...")
     sys.exit(1)
 
+# Suscripción objetivo
+SUB_ID = "20e32245-0b90-4bb8-8eaa-c5aee6903f40"
+SUB_NOMBRE = "Cedex_Desarrollo_Test"
+
 # Configuración de salida
 RUTA_DESCARGA = os.path.dirname(os.path.abspath(__file__))
-NOMBRE_ARCHIVO = "Reporte_Costos_Azure_Todas_Suscripciones_2026.csv"
+NOMBRE_ARCHIVO = "costos_transd_ultimo.csv"
 RUTA_COMPLETA = os.path.join(RUTA_DESCARGA, NOMBRE_ARCHIVO)
 
-# Diccionario para mapear los meses a español
 MESES_ESPAÑOL = {
     1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
     5: "mayo", 6: "junio", 7: "julio", 8: "agosto",
     9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
 }
 
-# Bloques de tiempo para evitar el límite de 1 año de la API
 PERIODOS = [
     ("2026-01-01T00:00:00+00:00", "2026-12-31T23:59:59+00:00")
-]
-
-# Suscripciones objetivo (solo estas se consultan)
-SUSCRIPCIONES_OBJETIVO = [
-    {"id": "dd49113b-6fbe-4ade-b965-1e91d0b2850d", "nombre": "Datacenter DSIT"},
-    {"id": "20e32245-0b90-4bb8-8eaa-c5aee6903f40", "nombre": "Cedex_Desarrollo_Test"},
-    {"id": "87b29fc3-977e-4382-8c1e-2446b9e47939", "nombre": "Trans_Digital"},
 ]
 
 # ==========================================
@@ -132,33 +127,27 @@ token = obtener_token()
 todas_las_filas = []
 
 if token:
-    lista_suscripciones = SUSCRIPCIONES_OBJETIVO
-    print(f"✅ Consultando {len(lista_suscripciones)} suscripción(es) objetivo...")
+    print(f"📊 Procesando: {SUB_NOMBRE} ({SUB_ID})")
 
-    # Iteramos sobre las suscripciones objetivo
-    for sub in lista_suscripciones:
-        print(f"\n📊 Procesando: {sub['nombre']} ({sub['id']})")
+    for inicio, fin in PERIODOS:
+        print(f"   -> Consultando periodo: {inicio[:10]} al {fin[:10]}")
+        datos = consultar_costos_periodo(token, SUB_ID, inicio, fin)
 
-        # Iteramos sobre los bloques de tiempo para burlar el límite de la API
-        for inicio, fin in PERIODOS:
-            print(f"   -> Consultando periodo: {inicio[:10]} al {fin[:10]}")
-            datos = consultar_costos_periodo(token, sub['id'], inicio, fin)
+        if datos and 'properties' in datos and 'rows' in datos['properties']:
+            filas_azure = datos['properties']['rows']
+            todas_las_filas.extend(filas_azure)
+        else:
+            print(f"      ⚠️ Sin datos de costo o error para este periodo.")
 
-            if datos and 'properties' in datos and 'rows' in datos['properties']:
-                filas_azure = datos['properties']['rows']
-                todas_las_filas.extend(filas_azure)
-            else:
-                print(f"      ⚠️ Sin datos de costo o error para este periodo.")
-
-    # Guardado del archivo CSV (igual que antes)
     if not todas_las_filas:
-        print("\n✅ No se encontraron costos en ninguna suscripción para el periodo total definido.")
+        print("\n✅ No se encontraron costos para el periodo definido.")
     else:
         cabeceras = [
             'Mes', 'Suscripcion', 'Grupo_Recursos', 'Servicio',
             'Tipo_Recurso', 'Ubicacion', 'Recurso_Nombre', 'Costo', 'Moneda'
         ]
 
+        filas_procesadas = []
         try:
             with open(RUTA_COMPLETA, mode='w', newline='', encoding='utf-8-sig') as archivo_csv:
                 escritor = csv.writer(archivo_csv, delimiter=',')
@@ -167,7 +156,6 @@ if token:
                 for f in todas_las_filas:
                     costo = round(f[0], 2)
 
-                    # Procesamiento robusto de fecha
                     fecha_raw = str(f[1])
                     try:
                         fecha_limpia = fecha_raw.split('T')[0].replace("-", "")
@@ -188,16 +176,19 @@ if token:
 
                     moneda = f[8]
 
-                    escritor.writerow([
-                        mes_display, suscripcion, grupo, servicio,
-                        tipo_recurso, ubicacion, nombre_recurso, costo, moneda
-                    ])
+                    fila = [mes_display, suscripcion, grupo, servicio, tipo_recurso, ubicacion, nombre_recurso, costo, moneda]
+                    escritor.writerow(fila)
+                    filas_procesadas.append(fila)
 
             print("\n" + "="*60)
             print(f"🚀 PROCESO COMPLETADO CON ÉXITO")
             print(f"📂 Archivo generado en: {RUTA_COMPLETA}")
-            print(f"📊 Total de registros consolidados: {len(todas_las_filas)}")
+            print(f"📊 Total de registros: {len(todas_las_filas)}")
             print("="*60)
+
+            # Resumen agrupado por grupo de recursos y servicio
+            costo_total = sum(fila[7] for fila in filas_procesadas)
+            print(f"\n💰 Costo total {SUB_NOMBRE}: {costo_total:,.2f}")
 
         except PermissionError:
             print(f"❌ Error: No se pudo escribir el archivo. Asegúrate de que '{NOMBRE_ARCHIVO}' no esté abierto en Excel.")
