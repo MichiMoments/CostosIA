@@ -70,6 +70,48 @@ def test_espera_429_usa_cabeceras_de_cost_management():
     assert _espera_429({"Retry-After": "500"}, 0) == 60
 
 
+def test_consultar_costos_usa_grouping_por_defecto(monkeypatch):
+    from costos_etl import extract
+    enviados = []
+    monkeypatch.setattr(extract, "_post_con_reintentos", lambda url, h, payload: enviados.append(payload) or {"properties": {}})
+    extract.consultar_costos("t", "sub", "a", "b", ["rg"])
+    extract.consultar_costos("t", "sub", "a", "b", ["rg"], ["Meter"])
+    assert [g["name"] for g in enviados[0]["dataset"]["grouping"]] == extract.GROUPING
+    assert [g["name"] for g in enviados[1]["dataset"]["grouping"]] == ["Meter"]
+
+
+# --- explore ---
+
+def meter_row(rg, service, meter, cost):
+    return {"ResourceGroupName": rg, "ServiceName": service, "Meter": meter, "PreTaxCost": cost}
+
+
+def test_explore_resumir_separa_modelos_y_desglosa_por_grupo():
+    from costos_etl import explore
+    filas = [
+        meter_row("rg-a", "SaaS", "Claude Opus 4.6", 100.0),
+        meter_row("RG-B", "SaaS", "Claude Opus 4.6", 50.0),
+        meter_row("rg-a", "Foundry Models", "gpt 4.1 Inp glbl Tokens", 10.0),
+        meter_row("rg-a", "Azure Monitor", "Alerts Metric Monitored", 2.0),
+        meter_row("rg-b", "Azure Monitor", "Alerts Metric Monitored", 1.0),
+    ]
+    r = explore.resumir(filas, ["rg-a", "RG-B", "rg-c"])
+    assert r["por_rg"]["rg-a"] == {"modelo": 110.0, "otros": 2.0}
+    assert r["por_rg"]["rg-b"] == {"modelo": 50.0, "otros": 1.0}
+    assert r["por_modelo"]["Claude Opus 4.6"] == {"rg-a": 100.0, "rg-b": 50.0}
+    assert r["otros"]["rg-a"] == {("Azure Monitor", "Alerts Metric Monitored"): 2.0}
+    assert r["sin_filas"] == ["rg-c"]
+
+
+def test_explore_unir_pasadas():
+    from costos_etl import explore
+    a = [{"ResourceGroupName": "RG-A", "Meter": "m1", "PreTaxCost": 1.0}]
+    b = [{"ResourceGroupName": "rg-a", "Meter": "m1", "MeterSubcategory": "Sub", "ServiceFamily": "F"}]
+    assert explore.unir_pasadas(a, b) == [{"ResourceGroupName": "RG-A", "Meter": "m1", "PreTaxCost": 1.0,
+                                          "MeterCategory": None, "MeterSubcategory": "Sub",
+                                          "ServiceFamily": "F"}]
+
+
 # --- agregar ---
 
 def test_agregar_mapea_rg_sin_importar_mayusculas_y_reporta_sin_mapear():

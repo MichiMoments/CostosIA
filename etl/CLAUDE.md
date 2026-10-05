@@ -8,6 +8,7 @@ Single Python job that refreshes everything the Angular app reads: `src/assets/d
 - `--dry-run` — prints the diff; writes nothing, makes no LLM calls (still calls Azure)
 - `--skip-ai` — updates costos.json and leaves ai-cache.json unchanged
 - `--force-zeros` — lets a 0 from the API overwrite an existing value
+- `python -m costos_etl.explore --month 2026-09 [--include-env-rgs]`: a read-only, meter-level extract of the model RGs (`explore.MODEL_RGS`). It writes `raw/explore/<YYYY-MM>-models.csv` and prints a summary: per-RG model vs other costs, model × RG, additional costs, and a diff against `models`. It never touches costos.json.
 - `python -m pytest etl/tests` (from the repo root) — tests use a copy of the real `costos.json`, with no network
 
 Python 3.11. Dependencies in `requirements.txt` (`requests`; the azure-* packages are only imported when Blob is configured).
@@ -22,6 +23,7 @@ Python 3.11. Dependencies in `requirements.txt` (`requests`; the azure-* package
 | `merge.py` | merge into costos.json (`normalize()`, `ENV_TO_GK`, `ENV_TO_SK`, zero guard) |
 | `ai_cache.py` | `build_chart1..5` (copied verbatim from the old script) + `generar()` |
 | `llm.py` | `LLMProvider` protocol: `GeminiProvider`, `KimiLLMHubProvider` (stub) |
+| `explore.py` | Model-cost exploration by meter (`MODEL_RGS`, `resumir()`). It is a preliminary step for loading `models`, separate from the main pipeline |
 | `storage.py` | `LocalStorage` (atomic writes) / `BlobStorage` (`DefaultAzureCredential`) |
 
 ## Pipeline
@@ -61,6 +63,10 @@ Matching ignores case. Seen in the data but **not mapped yet**, pending the user
 - `rg-uniandes-ia-chatmigo-prod` and `rg-uniandes-ia-chatmigo-qa` (Trans_Digital)
 
 Because the API filters by this map, unmapped RGs never reach the ETL.
+
+The Foundry model RGs (`rg-uniandes-ia-*` and `Uniandes-E-PRB-AI_Studio-RG`, all in Trans_Digital) are deliberately **not** in `RG_ENV_MAP`. They live in `explore.MODEL_RGS` until the design for loading them into `models` is decided.
+
+Cost Management grouping dimensions: `ServiceTier` is rejected, and the name is `MeterSubcategory` (lowercase c). `PartNumber`, `Meter`, `MeterCategory` and `ServiceFamily` are accepted.
 
 ## Configuration (env vars; `etl/.env` optional, real env vars win)
 - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (required). The service principal needs **Cost Management Reader**.

@@ -18,6 +18,10 @@ class ExtractError(Exception):
     pass
 
 
+class BadRequestError(ExtractError):
+    """400 de Cost Management (p. ej. una agrupación que la API no acepta)."""
+
+
 @dataclass
 class CostRow:
     year: int
@@ -101,10 +105,13 @@ def _post_con_reintentos(url: str, headers: dict, payload: dict, max_reintentos:
             time.sleep(espera)
             intento += 1
             continue
-        raise ExtractError(f"Error {res.status_code} al consultar costos: {res.text[:300]}")
+        error = BadRequestError if res.status_code == 400 else ExtractError
+        raise error(f"Error {res.status_code} al consultar costos: {res.text[:300]}")
 
 
-def consultar_costos(token: str, sub_id: str, desde: str, hasta: str, resource_groups: list[str]) -> list[dict]:
+def consultar_costos(
+    token: str, sub_id: str, desde: str, hasta: str, resource_groups: list[str], grouping: list[str] = GROUPING,
+) -> list[dict]:
     """Consulta costos mensuales de una suscripción, filtrados por grupo de recursos.
 
     Devuelve filas como dicts {nombre_columna: valor}, siguiendo nextLink si hay paginación.
@@ -118,7 +125,7 @@ def consultar_costos(token: str, sub_id: str, desde: str, hasta: str, resource_g
         "dataset": {
             "granularity": "Monthly",
             "aggregation": {"totalCost": {"name": "PreTaxCost", "function": "Sum"}},
-            "grouping": [{"type": "Dimension", "name": d} for d in GROUPING],
+            "grouping": [{"type": "Dimension", "name": d} for d in grouping],
             "filter": {"dimensions": {"name": "ResourceGroupName", "operator": "In", "values": resource_groups}},
         },
     }
@@ -156,14 +163,19 @@ def a_cost_row(fila: dict) -> CostRow:
     )
 
 
-def extraer(cfg: Config, desde: str, hasta: str, resource_groups: list[str]) -> list[CostRow]:
-    token = obtener_token(cfg)
+def _suscripciones(cfg: Config, token: str) -> list[dict]:
     if cfg.subscription_ids:
         suscripciones = [{"id": s, "nombre": s} for s in cfg.subscription_ids]
     else:
         suscripciones = obtener_suscripciones(token)
     if not suscripciones:
         raise ExtractError("No se encontraron suscripciones. Verifica el rol 'Cost Management Reader' del service principal.")
+    return suscripciones
+
+
+def extraer(cfg: Config, desde: str, hasta: str, resource_groups: list[str]) -> list[CostRow]:
+    token = obtener_token(cfg)
+    suscripciones = _suscripciones(cfg, token)
 
     print(f"Consultando {len(suscripciones)} suscripción(es) de {desde[:10]} a {hasta[:10]}...")
     filas: list[CostRow] = []
@@ -173,4 +185,23 @@ def extraer(cfg: Config, desde: str, hasta: str, resource_groups: list[str]) -> 
             print(f"   {sub['nombre']}: {len(crudas)} filas")
         filas.extend(a_cost_row(f) for f in crudas)
         time.sleep(1)  # reduce el throttling de Cost Management entre suscripciones
+    return filas
+
+
+def extraer_detalle(cfg: Config, desde: str, hasta: str, resource_groups: list[str], grouping: list[str]) -> list[dict]:
+    """Como extraer(), pero con la agrupación indicada y devolviendo las filas crudas de la API
+    (con SubscriptionName añadido si la agrupación no lo trae). Para exploración a nivel de meter."""
+    token = obtener_token(cfg)
+    suscripciones = _suscripciones(cfg, token)
+
+    print(f"Consultando {len(suscripciones)} suscripción(es) de {desde[:10]} a {hasta[:10]}...")
+    filas: list[dict] = []
+    for sub in suscripciones:
+        crudas = consultar_costos(token, sub["id"], desde, hasta, resource_groups, grouping)
+        if crudas:
+            print(f"   {sub['nombre']}: {len(crudas)} filas")
+        for f in crudas:
+            f.setdefault("SubscriptionName", sub["nombre"])
+        filas.extend(crudas)
+        time.sleep(1)
     return filas
