@@ -48,3 +48,11 @@ scripts/.env
 scripts/*.csv
 scripts/__pycache__/
 scripts/*.pyc
+
+# ETL
+etl/.env
+etl/raw/
+etl/**/*.csv
+__pycache__/
+*.pyc
+.pytest_cache/

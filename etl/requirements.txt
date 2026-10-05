@@ -1,0 +1,4 @@
+requests>=2.32
+# Solo se usan si AZURE_STORAGE_ACCOUNT y AZURE_STORAGE_CONTAINER están definidos
+azure-storage-blob>=12.20
+azure-identity>=1.17

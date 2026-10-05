@@ -2,7 +2,7 @@
 
 ## Source of Truth
 - The original dashboard is `tablero-costos-chatmigo.html` at the project root (`CostosIA/`)
-- Data extracted to `src/assets/data/costos.json` — this is STATIC and stable
+- Data lives in `src/assets/data/costos.json` and `ai-cache.json`, refreshed monthly by the ETL in `etl/` (`costos_etl`). The ETL only updates the months it processes and never touches `Modelos`/`models`
 - All CSS custom properties, colors, spacing, and fonts must match the original exactly
 
 ## Architecture Decisions
@@ -38,3 +38,5 @@ src/app/
 - `ng serve` — dev server at localhost:4200
 - `ng build` — production build
 - `ng test` — run tests with Vitest
+- `cd etl; python -m costos_etl [--month YYYY-MM] [--dry-run] [--skip-ai]` — monthly ETL (config in `etl/.env`, see `etl/.env.example`)
+- `python -m pytest etl/tests` — ETL tests

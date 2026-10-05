@@ -1,24 +1,14 @@
-"""
-generate_ai_cache.py
-Generates pre-baked AI analysis for the 5 dashboard charts (15 total responses).
-Writes src/assets/data/ai-cache.json — consumed by the Angular app at build time.
+"""Análisis IA precalculado para los 5 gráficos del tablero (antes scripts/generate_ai_cache.py).
 
-Usage:
-    cd scripts
-    python generate_ai_cache.py
+Los constructores build_chart1..5 se copiaron sin cambios: definen los prompts y los datos
+que recibe el LLM para cada gráfico.
 """
 
-import json, os, re, sys, time
+import json
+import time
 from datetime import datetime, timezone
 
-import requests
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-COSTOS_JSON = os.path.join(SCRIPT_DIR, '..', 'src', 'assets', 'data', 'costos.json')
-OUTPUT_JSON = os.path.join(SCRIPT_DIR, '..', 'src', 'assets', 'data', 'ai-cache.json')
-
-MODEL = 'gemini-3.5-flash'
-API_URL = f'https://generativelanguage.googleapis.com/v1/models/{MODEL}:generateContent'
+from .llm import LLMProvider
 
 ENVS = [
     {'gk': 'Desarrollo',   'label': 'Desarrollo'},
@@ -34,24 +24,6 @@ AMB = [
 ]
 
 
-def load_env():
-    env_path = os.path.join(SCRIPT_DIR, '.env')
-    if not os.path.exists(env_path):
-        print(f'ERROR: {env_path} not found')
-        sys.exit(1)
-    with open(env_path, encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                k, v = line.split('=', 1)
-                os.environ[k.strip()] = v.strip()
-
-
-def load_costos():
-    with open(COSTOS_JSON, encoding='utf-8') as f:
-        return json.load(f)
-
-
 def sum_arr(arr):
     return sum(v or 0 for v in arr)
 
@@ -63,34 +35,6 @@ def sum_range(arr, n):
 def annual(general, year, gk):
     return sum_arr(general[year][gk])
 
-
-def strip_markdown(text):
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-    text = re.sub(r'\*(.*?)\*', r'\1', text)
-    text = re.sub(r'`(.*?)`', r'\1', text)
-    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
-    text = re.sub(r'^[-*]\s+', '• ', text, flags=re.MULTILINE)
-    return text.strip()
-
-
-def call_gemini(api_key, system_prompt, data_json):
-    body = {
-        'systemInstruction': {
-            'parts': [{'text': system_prompt}],
-        },
-        'contents': [
-            {'role': 'user', 'parts': [{'text': f'Datos del gráfico (JSON):\n{data_json}'}]},
-        ],
-        'generationConfig': {
-            'temperature': 0.3,
-            'maxOutputTokens': 800,
-        },
-    }
-    resp = requests.post(f'{API_URL}?key={api_key}', json=body, timeout=60)
-    resp.raise_for_status()
-    data = resp.json()
-    text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-    return strip_markdown(text.strip()) if text else 'No se pudo generar el análisis.'
 
 
 def cmp_series(general, envs, year, idx):
@@ -333,62 +277,44 @@ def env_key(label):
     return label.lower().replace('ó', 'o').replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ú', 'u')
 
 
-def main():
-    load_env()
-    api_key = os.environ.get('GEMINI_API_KEY', '')
-    if not api_key:
-        print('ERROR: GEMINI_API_KEY not set in .env')
-        sys.exit(1)
+class AiCacheError(Exception):
+    pass
 
-    data = load_costos()
-    cache = {'generatedAt': datetime.now(timezone.utc).isoformat()}
 
-    tasks = []
-
-    # Chart 1 (static)
+def construir_tareas(data):
+    tareas = []
     p, d = build_chart1(data)
-    tasks.append(('chart1', p, d))
-
-    # Chart 2 (static)
+    tareas.append(('chart1', p, d))
     p, d = build_chart2(data)
-    tasks.append(('chart2', p, d))
-
-    # Chart 3 (per AMB environment, 2026 only)
+    tareas.append(('chart2', p, d))
     for env in AMB:
-        key = f'chart3_{env_key(env["label"])}'
         p, d = build_chart3(data, env)
-        tasks.append((key, p, d))
-
-    # Charts 4 & 5 (per ENVS + Total)
+        tareas.append((f'chart3_{env_key(env["label"])}', p, d))
     seg_options = [(-1, 'Total')] + [(i, ENVS[i]['label']) for i in range(len(ENVS))]
     for idx, label in seg_options:
-        key4 = f'chart4_{env_key(label)}'
         p, d = build_chart4(data, idx, label)
-        tasks.append((key4, p, d))
-
-        key5 = f'chart5_{env_key(label)}'
+        tareas.append((f'chart4_{env_key(label)}', p, d))
         p, d = build_chart5(data, idx, label)
-        tasks.append((key5, p, d))
+        tareas.append((f'chart5_{env_key(label)}', p, d))
+    return tareas
 
-    print(f'Generating {len(tasks)} AI analyses...\n')
 
-    for i, (key, prompt, payload) in enumerate(tasks):
-        print(f'[{i+1}/{len(tasks)}] {key}...')
+def generar(data, provider: LLMProvider, pausa_s: float = 1.5, max_fallos_ratio: float = 0.5) -> dict:
+    """Genera las 15 respuestas. Si fallan más de la mitad, lanza AiCacheError."""
+    cache = {'generatedAt': datetime.now(timezone.utc).isoformat(), 'provider': provider.name}
+    tareas = construir_tareas(data)
+    fallos = 0
+    print(f'Generando {len(tareas)} análisis IA con {provider.name}...')
+    for i, (key, prompt, payload) in enumerate(tareas):
         try:
-            text = call_gemini(api_key, prompt, payload)
-            cache[key] = text
-            print(f'  -> {text[:80]}...\n')
+            cache[key] = provider.generate(prompt, f'Datos del gráfico (JSON):\n{payload}')
+            print(f'   [{i + 1}/{len(tareas)}] {key}: ok')
         except Exception as exc:
-            print(f'  ERROR: {exc}\n')
+            fallos += 1
             cache[key] = 'Error al generar el análisis.'
-        if i < len(tasks) - 1:
-            time.sleep(1.5)
-
-    with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
-        json.dump(cache, f, ensure_ascii=False, indent=2)
-
-    print(f'\nDone. Wrote {len(tasks)} analyses to {OUTPUT_JSON}')
-
-
-if __name__ == '__main__':
-    main()
+            print(f'   [{i + 1}/{len(tareas)}] {key}: ERROR {exc}')
+        if i < len(tareas) - 1:
+            time.sleep(pausa_s)
+    if fallos > len(tareas) * max_fallos_ratio:
+        raise AiCacheError(f'{fallos} de {len(tareas)} análisis fallaron')
+    return cache

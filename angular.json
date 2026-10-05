@@ -45,6 +45,16 @@
               ],
               "outputHashing": "all"
             },
+            "export": {
+              "outputPath": "dist/export",
+              "outputHashing": "none",
+              "fileReplacements": [
+                {
+                  "replace": "src/app/app.config.ts",
+                  "with": "src/app/app.config.export.ts"
+                }
+              ]
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,
