@@ -66,6 +66,16 @@ def load_dotenv(path: Path) -> None:
             os.environ.setdefault(clave.strip(), valor.strip().strip('"').strip("'"))
 
 
+def _entero(env, clave: str, defecto: int) -> int:
+    valor = env.get(clave)
+    if not valor:
+        return defecto
+    try:
+        return int(valor)
+    except ValueError:
+        raise ConfigError(f"{clave} debe ser un entero, no '{valor}'") from None
+
+
 @dataclass
 class Config:
     tenant_id: str
@@ -75,7 +85,13 @@ class Config:
     llm_provider: str = "gemini"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash"
-    kimi_api_key: str = ""
+    # llmhub: solo referencias a Key Vault, nunca la key ni el endpoint
+    key_vault_uri: str = ""
+    llm_secret_api_key: str = ""
+    llm_secret_endpoint: str = ""
+    llm_model_name: str = "gpt-5.6-terra"
+    llm_api_version: str = ""
+    llm_max_tokens: int = 4000
     output_dir: Path = REPO_ROOT / "src" / "assets" / "data"
     raw_dir: Path = ETL_DIR / "raw"
     storage_account: str = ""
@@ -103,7 +119,12 @@ class Config:
             llm_provider=(env.get("LLM_PROVIDER") or "gemini").strip().lower(),
             gemini_api_key=env.get("GEMINI_API_KEY", ""),
             gemini_model=env.get("GEMINI_MODEL") or "gemini-3.5-flash",
-            kimi_api_key=env.get("KIMI_API_KEY", ""),
+            key_vault_uri=env.get("AZURE_KEY_VAULT_URI", ""),
+            llm_secret_api_key=env.get("LLM_SECRET_API_KEY", ""),
+            llm_secret_endpoint=env.get("LLM_SECRET_ENDPOINT", ""),
+            llm_model_name=env.get("LLM_MODEL_NAME") or "gpt-5.6-terra",
+            llm_api_version=env.get("LLM_API_VERSION", ""),
+            llm_max_tokens=_entero(env, "LLM_MAX_TOKENS", 4000),
             storage_account=env.get("AZURE_STORAGE_ACCOUNT", ""),
             storage_container=env.get("AZURE_STORAGE_CONTAINER", ""),
             storage_raw_container=env.get("AZURE_STORAGE_RAW_CONTAINER") or "raw",

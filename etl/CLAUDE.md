@@ -11,7 +11,7 @@ Single Python job that refreshes everything the Angular app reads: `src/assets/d
 - `python -m costos_etl.explore --month 2026-09 [--include-env-rgs]`: a read-only, meter-level extract of the model RGs (`config.MODEL_RGS`) for debugging. It writes `raw/explore/<YYYY-MM>-models.csv` and prints a summary: per-RG model vs other costs, model × RG, additional costs, and a diff against `models`. It never touches costos.json.
 - `python -m pytest etl/tests` (from the repo root) — tests use a copy of the real `costos.json`, with no network
 
-Python 3.11. Dependencies in `requirements.txt` (`requests`; the azure-* packages are only imported when Blob is configured).
+Python 3.11. Dependencies in `requirements.txt` (`requests`; the azure-* packages are only imported when Blob is configured). `LLM_PROVIDER=llmhub` also needs `requirements-llmhub.txt`. It includes `llmhub_uniandes`, which comes from the private Azure Artifacts feed `https://pkgs.dev.azure.com/cedexdevsoftware/_packaging/pythonPackages/pypi/simple/` (install `keyring artifacts-keyring` first and pass the feed with `--extra-index-url`). Keep it out of `requirements.txt`: the lazy imports let the base install and the tests run without the feed.
 
 ## Layout
 | Module | Role |
@@ -23,7 +23,8 @@ Python 3.11. Dependencies in `requirements.txt` (`requests`; the azure-* package
 | `merge.py` | merge into costos.json: `fusionar()` for environments/services (`normalize()`, `ENV_TO_GK`, `ENV_TO_SK`, zero guard) and `fusionar_modelos()` for `models` + `general[*]["Modelos"]` |
 | `models.py` | Model costs by meter: `extraer()` (with two-query fallback), `unidad()`, `clasificar()`, `agregar()`, `a_csv()` |
 | `ai_cache.py` | `build_chart1..5` (copied verbatim from the old script) + `generar()` |
-| `llm.py` | `LLMProvider` protocol: `GeminiProvider`, `KimiLLMHubProvider` (stub) |
+| `llm.py` | `LLMProvider` protocol: `GeminiProvider` and `LLMHubProvider` (Azure OpenAI through `llmhub_uniandes`, which receives the key and endpoint already resolved) |
+| `keyvault.py` | `resolver_llm()`: reads the model's key and endpoint from Key Vault by secret name, with the ETL's service principal |
 | `explore.py` | Read-only model-cost exploration by meter (`resumir()`), reusing `models.py`. Not part of the pipeline |
 | `storage.py` | `LocalStorage` (atomic writes) / `BlobStorage` (`DefaultAzureCredential`) |
 
@@ -79,7 +80,9 @@ Cost Management grouping dimensions: `ServiceTier` is rejected, and the name is 
 ## Configuration (env vars; `etl/.env` optional, real env vars win)
 - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (required). The service principal needs **Cost Management Reader**.
 - `AZURE_SUBSCRIPTION_IDS` — optional comma-separated list. Empty means all accessible subscriptions (about 26), which is slower.
-- `LLM_PROVIDER` = `gemini` (default) | `kimi`. Then `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.5-flash`), `KIMI_API_KEY`.
+- `LLM_PROVIDER` = `gemini` (default) | `llmhub`.
+  - `gemini`: `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.5-flash`).
+  - `llmhub`: **Key Vault references only, never the key or the endpoint.** `AZURE_KEY_VAULT_URI`, `LLM_SECRET_API_KEY` and `LLM_SECRET_ENDPOINT` (secret names), `LLM_API_VERSION`, `LLM_MODEL_NAME` (default `gpt-5.6-terra`, also used as the deployment), `LLM_MAX_TOKENS` (default 4000). The values come from the model's document in `ai_configuration.Model`, the same pattern as CA-AIUniandes-RAG-Base. The service principal above needs **Key Vault Secrets User** on that vault. Secrets are resolved only when AI runs, so `--dry-run` and `--skip-ai` don't touch Key Vault.
 - `OUTPUT_DIR` (default `<repo>/src/assets/data`), `RAW_DIR` (default `etl/raw`). Raw CSVs must never go in `src/assets`, because they would be bundled.
 - `AZURE_STORAGE_ACCOUNT` + `AZURE_STORAGE_CONTAINER`: if both are set, Blob is used instead of local storage. `AZURE_STORAGE_RAW_CONTAINER` defaults to `raw`.
 - A blank value in `.env` falls back to the default.
@@ -95,8 +98,13 @@ Cost Management grouping dimensions: `ServiceTier` is rejected, and the name is 
 - Rows are read by column name (`properties.columns`), not by position. Large results page through `properties.nextLink`.
 - Totals can differ by cents from the old CSV-based numbers. The old CSV rounded each row before summing; the ETL sums exact amounts.
 
+## llmhub quirks (gpt-5.x)
+- The library only sets `model_name`, and `init_chat_model` fails with `missing 'model'`. `LLMHubProvider` passes `model` through `with_config_additional_param`.
+- gpt-5.x is a reasoning model, so the provider sets no `temperature` and uses `max_completion_tokens`. Reasoning tokens count toward that budget: if the response is empty, raise `LLM_MAX_TOKENS`.
+- It uses `OpenAIAdapter`, as RAG-Base does. `AzureOpenAIAdapter` also builds the same `AzureChatOpenAI`.
+
 ## Pending / known gaps
-- `KimiLLMHubProvider.generate` is a stub that raises `NotImplementedError`. Implement it with the LLMHub library once it's available.
+- `LLMHubProvider` has not been tested against the real model yet. That needs the Key Vault references and `api_version` (see the open inputs in `PLAN_LLMHUB.md`).
 - The year rollover for 2027 (see Invariants). A run in February 2027 will exit with code 2.
 - The Angular app still imports the JSON at build time (`src/app/core/data.service.ts`), so a rebuild is needed after a run until it fetches from `/data/*` at runtime (see the deployment diagram).
 - Containerization (Dockerfile, Container Apps Job, Azure DevOps pipeline) is not done yet.

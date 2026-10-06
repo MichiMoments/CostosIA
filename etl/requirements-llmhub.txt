@@ -1,0 +1,8 @@
+# Solo para LLM_PROVIDER=llmhub. llmhub_uniandes viene del feed privado de Azure Artifacts:
+#   pip install keyring artifacts-keyring
+#   pip install -r requirements-llmhub.txt --extra-index-url https://pkgs.dev.azure.com/cedexdevsoftware/_packaging/pythonPackages/pypi/simple/
+# En contenedor/CI no hay login interactivo: usar un PAT con Packaging (Read) como build arg.
+llmhub_uniandes==0.0.7
+langchain-openai
+azure-identity>=1.17
+azure-keyvault-secrets>=4.8
