@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from costos_etl import ai_cache, merge, transform
+from costos_etl import ai_cache, merge, models, transform
 from costos_etl.config import REPO_ROOT
 from costos_etl.extract import CostRow, a_cost_row
 from costos_etl.storage import LocalStorage
@@ -103,11 +103,10 @@ def test_explore_resumir_separa_modelos_y_desglosa_por_grupo():
     assert r["sin_filas"] == ["rg-c"]
 
 
-def test_explore_unir_pasadas():
-    from costos_etl import explore
+def test_models_unir_pasadas():
     a = [{"ResourceGroupName": "RG-A", "Meter": "m1", "PreTaxCost": 1.0}]
     b = [{"ResourceGroupName": "rg-a", "Meter": "m1", "MeterSubcategory": "Sub", "ServiceFamily": "F"}]
-    assert explore.unir_pasadas(a, b) == [{"ResourceGroupName": "RG-A", "Meter": "m1", "PreTaxCost": 1.0,
+    assert models.unir_pasadas(a, b) == [{"ResourceGroupName": "RG-A", "Meter": "m1", "PreTaxCost": 1.0,
                                           "MeterCategory": None, "MeterSubcategory": "Sub",
                                           "ServiceFamily": "F"}]
 
@@ -184,6 +183,149 @@ def test_fusionar_no_retrocede_last_data(costos):
     vacio = {"total": 0.0, "services": {}}
     nuevo, _ = merge.fusionar(costos, {(2026, 3): {"Desarrollo": vacio, "QA": vacio, "Producción": vacio}})
     assert nuevo["meta"]["lastData2026"] == costos["meta"]["lastData2026"]
+
+
+# --- models ---
+
+def api_row(rg, resource, service, meter, cost, sub="", billing="2026-09-01T00:00:00"):
+    return {"ResourceGroupName": rg, "ResourceId": f"/subscriptions/x/resourcegroups/{rg}/providers/p/{resource}",
+            "ServiceName": service, "MeterSubcategory": sub, "Meter": meter, "PartNumber": "",
+            "PreTaxCost": cost, "BillingMonth": billing}
+
+
+@pytest.mark.parametrize("rg,resource,esperado", [
+    ("Uniandes-E-PRB-AI_Studio-RG", "uniandes-dev-ia-resource", "ChatMigo"),
+    ("Uniandes-E-PRB-AI_Studio-RG", "uniandes-ingenieria-ia", "Ingenieria"),
+    ("Uniandes-E-PRB-AI_Studio-RG", "isisaiuniandes2936786931", "Otras Unidades"),
+    ("Uniandes-E-PRB-AI_Studio-RG", "alert-educacion-a1-tokens-hora", "Otras Unidades"),
+    ("rg-uniandes-ia-ingenieria", "af-uniandes-ingenieria", "Ingenieria"),
+    ("rg-uniandes-ia-dsit", "alert-dsit-foundry-a1", "Otras Unidades"),
+    ("rg-uniandes-ia-chatmigo-prod", "af-uniandes-chatmigo-prod", "ChatMigo"),
+    ("rg-uniandes-ia-plataforma", "log-uniandes-ia", "ChatMigo"),
+])
+def test_models_unidad(rg, resource, esperado):
+    assert models.unidad(api_row(rg, resource, "Foundry Models", "m", 1.0)) == esperado
+
+
+@pytest.mark.parametrize("service,sub,meter,model,fam,tt", [
+    ("Foundry Models", "Azure OpenAI GPT5", "GPT 5 Mini outpt Glbl 1M Tokens", "GPT-5 Mini", "GPT-5", "Salida"),
+    ("Foundry Models", "Azure Deepseek Models", "V4 Pro cached glbl Tokens", "DeepSeek V4", "DeepSeek", "Entrada"),
+    ("Foundry Models", "Azure OpenAI GPT6", "6-astra ShortCo Cd Wr Std Gl 1M Tokens", "GPT-6", "GPT-6", "Entrada"),
+    ("Foundry Models", "Azure Kimi", "K2.6 cached glbl Tokens", "Kimi K2", "Kimi K2", "Entrada"),
+    ("SaaS", "Claude Sonnet 4.6", "Claude Sonnet 4.6 - ccu-plan - claude-consumption-units", "Claude Sonnet 4.6", "Claude", "Otro"),
+    ("Azure Monitor", "Azure Monitor", "Alerts Metric Monitored X", "Azure Monitor", "Otros", "Otro"),
+    ("Foundry Tools", "Azure Speech", "S1 Speech To Text X", "Azure Speech", "Servicios/Tools", "Otro"),
+    ("Foundry Models", "Azure Nuevo", "zz9 Inp glbl Tokens", "Azure Nuevo", models.FAM_SIN_CLASIFICAR, "Entrada"),
+])
+def test_models_clasificar_por_reglas(service, sub, meter, model, fam, tt):
+    c = models.clasificar(api_row("rg", "r", service, meter, 1.0, sub=sub), {})
+    assert (c["model"], c["fam"], c["tt"]) == (model, fam, tt)
+    assert c["family"] == c["serviceTier"] == sub
+
+
+def test_models_clasificar_reutiliza_fila_existente(costos):
+    existentes = models.metadata_existente(costos)
+    fila = api_row("rg", "r", "Foundry Models", "k2.6 thinking inp glbl tokens", 1.0, sub="Azure Kimi")
+    c = models.clasificar(fila, existentes)
+    assert (c["model"], c["fam"], c["tt"], c["family"]) == ("Kimi K2", "Kimi K2", "Entrada", "Foundry")
+
+
+@pytest.mark.parametrize("billing", ["2026-09-01T00:00:00", 20260901])
+def test_models_agregar_suma_por_unidad_y_meter(costos, billing):
+    meter = "GPT 5 Inpt Glbl 1M Tokens"
+    filas = [
+        api_row("Uniandes-E-PRB-AI_Studio-RG", "uniandes-dev-ia-resource", "Foundry Models", meter, 1.5, billing=billing),
+        api_row("rg-uniandes-ia-chatmigo-prod", "af-uniandes-chatmigo-prod", "Foundry Models", meter.lower(), 0.5, billing=billing),
+        api_row("rg-uniandes-ia-ingenieria", "af-uniandes-ingenieria", "Foundry Models", meter, 2.0, billing=billing),
+        api_row("rg-uniandes-ia-isis", "x", "Foundry Models", meter, 9.0, billing="2026-06-01T00:00:00"),
+    ]
+    res = models.agregar(filas, [(2026, 8), (2026, 9)], costos)
+    assert res[(2026, 8)] == {}
+    sept = res[(2026, 9)]
+    clave = meter.lower()
+    assert set(sept) == {("ChatMigo", clave), ("Ingenieria", clave)}
+    assert sept[("ChatMigo", clave)]["cost"] == 2.0
+    assert sept[("ChatMigo", clave)]["fam"] == "GPT-5"
+
+
+def entrada(tool, meter, cost, fam="GPT-5"):
+    return {"tool": tool, "meter": meter, "cost": cost, "serviceName": "Foundry Models", "family": "F",
+            "serviceTier": "F", "partNumber": "", "model": "M", "fam": fam, "tt": "Entrada"}
+
+
+def test_fusionar_modelos_actualiza_mes(costos):
+    original = json.dumps(costos)
+    mini = "GPT 5 Mini outpt Glbl 1M Tokens"
+    meses = {(2026, 9): {
+        ("ChatMigo", mini.lower()): entrada("ChatMigo", mini, 20.254),
+        ("ChatMigo", "v4 pro inp glbl tokens"): entrada("ChatMigo", "V4 Pro Inp glbl Tokens", 10.73),
+        ("Ingenieria", mini.lower()): entrada("Ingenieria", mini, 1.14),
+        ("ChatMigo", "casi cero"): entrada("ChatMigo", "casi cero", 0.004),
+    }}
+
+    nuevo, cambios = merge.fusionar_modelos(costos, meses)
+
+    assert json.dumps(costos) == original, "no debe mutar la entrada"
+    filas = nuevo["models"]["2026"]
+    n_antes = len(costos["models"]["2026"])
+    # Dos filas con el mismo meter (distinto part number): la primera recibe el valor, la otra 0
+    gpt5mini = [r for r in filas if r["tool"] == "ChatMigo" and r["meter"] == mini]
+    assert [r["values"][8] for r in gpt5mini] == [20.25, 0.0]
+    assert gpt5mini[0]["partNumber"] == "AAT-76133"
+    # Fila existente: conserva su clasificación y recalcula el total
+    v4 = next(r for r in filas if r["meter"] == "V4 Pro Inp glbl Tokens")
+    assert v4["values"][8] == 10.73 and v4["fam"] == "DeepSeek" and v4["total"] == round(sum(v4["values"]), 2)
+    # Filas sin costo este mes quedan en 0
+    assert next(r for r in filas if r["meter"] == "GPT 5 outpt Glbl 1M Tokens")["values"][8] == 0.0
+    # Meter nuevo para otra unidad; los que redondean a 0 no se agregan
+    ing = [r for r in filas if r["tool"] == "Ingenieria"]
+    assert len(ing) == 1 and ing[0]["values"][8] == 1.14 and ing[0]["total"] == 1.14
+    assert not any(r["meter"] == "casi cero" for r in filas)
+    assert len(filas) == n_antes + 1
+    assert any(f"meter nuevo '{mini}' (Ingenieria" in c for c in cambios)
+
+    # Modelos = suma del mes en models
+    assert nuevo["general"]["2026"]["Modelos"][8] == round(20.25 + 10.73 + 1.14, 2)
+    assert nuevo["general"]["2026"]["Modelos"][8] == round(sum(r["values"][8] for r in filas), 2)
+
+    # Meses anteriores, 2025 y todo lo demás intacto
+    assert [r["values"][:8] for r in filas[:n_antes]] == [r["values"][:8] for r in costos["models"]["2026"]]
+    assert nuevo["models"]["2025"] == costos["models"]["2025"]
+    assert nuevo["general"]["2026"]["Modelos"][:8] == costos["general"]["2026"]["Modelos"][:8]
+    otros_antes = {k: v for k, v in costos["general"]["2026"].items() if k != "Modelos"}
+    assert {k: v for k, v in nuevo["general"]["2026"].items() if k != "Modelos"} == otros_antes
+    assert nuevo["general"]["2025"] == costos["general"]["2025"]
+    assert nuevo["services"] == costos["services"] and nuevo["meta"] == costos["meta"]
+
+
+def test_fusionar_modelos_no_toca_meses_anteriores_a_models_from(costos):
+    meses = {(2026, 8): {("ChatMigo", "x"): entrada("ChatMigo", "x", 999.0)}}
+    nuevo, cambios = merge.fusionar_modelos(costos, meses)
+    assert json.dumps(nuevo) == json.dumps(costos)
+    assert any("se conservan" in c for c in cambios)
+
+
+def test_fusionar_modelos_guarda_de_ceros(costos):
+    costos["general"]["2026"]["Modelos"][8] = 50.0
+    nuevo, cambios = merge.fusionar_modelos(costos, {(2026, 9): {}})
+    assert nuevo["general"]["2026"]["Modelos"][8] == 50.0
+    assert any("la API devuelve 0" in c for c in cambios)
+
+    nuevo, _ = merge.fusionar_modelos(costos, {(2026, 9): {}}, force_zeros=True)
+    assert nuevo["general"]["2026"]["Modelos"][8] == 0.0
+
+
+def test_fusionar_modelos_avisa_meter_sin_clasificar(costos):
+    meses = {(2026, 9): {("ChatMigo", "zz"): entrada("ChatMigo", "zz", 1.0, fam=models.FAM_SIN_CLASIFICAR)}}
+    _, cambios = merge.fusionar_modelos(costos, meses)
+    assert any("REGLAS_MODELO" in c for c in cambios)
+
+
+def test_models_a_csv_incluye_unidad():
+    texto = models.a_csv([api_row("rg-uniandes-ia-ingenieria", "af", "Foundry Models", "m", 1.0)])
+    cabecera, fila = texto.splitlines()[:2]
+    assert cabecera.split(",")[:3] == ["Mes", "SubscriptionName", "Unidad"]
+    assert fila.startswith("2026-09,,Ingenieria,")
 
 
 # --- ai_cache ---

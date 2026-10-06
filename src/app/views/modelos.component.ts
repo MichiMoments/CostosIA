@@ -9,10 +9,11 @@ import { TOOLS, PAL, sum } from '../core/chart.utils';
 import { usd2 } from '../core/format.utils';
 import { MultiLineComponent } from '../charts/multi-line.component';
 import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
+import { StackedBarsComponent } from '../charts/stacked-bars.component';
 @Component({
   selector: 'app-modelos',
   standalone: true,
-  imports: [MultiLineComponent, HorizontalBarsComponent],
+  imports: [MultiLineComponent, HorizontalBarsComponent, StackedBarsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     :host { display: block; }
@@ -24,6 +25,7 @@ import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
     .io-stats { display: flex; gap: 20px; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
     .io-stats b { font-weight: 600; color: var(--text); }
     .detail-table { max-height: 520px; overflow-y: auto; }
+    .part-no { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   `],
   template: `
     <div class="controls">
@@ -112,6 +114,22 @@ import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
       }
     </div>
 
+    <!-- Monthly stacked bars (same series as the time series card) -->
+    <div class="card pad" style="margin-bottom:20px">
+      <div class="card-h">Costo mensual</div>
+      <div class="card-sub">{{ tsMode() === 'familia' ? 'Por familia' : 'Entrada / Salida' }} &middot; {{ selectedYear() }} &middot; {{ selectedTool() }}</div>
+      <app-stacked-bars [months]="tsMonths()" [series]="tsMode() === 'familia' ? famSeries() : ioSeries()"/>
+      <div class="legend">
+        @for (s of (tsMode() === 'familia' ? famSeries() : ioSeries()); track s.name) {
+          @if (!s.hidden) {
+            <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500">
+              <i [style.background]="s.hex"></i>{{ s.name }}
+            </span>
+          }
+        }
+      </div>
+    </div>
+
     <!-- Top meters -->
     <div class="card pad" style="margin-bottom:20px">
       <div class="card-h">Top consumos por meter</div>
@@ -145,12 +163,12 @@ import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
           </tr>
         </thead>
         <tbody>
-          @for (r of sortedRows(); track r.partNumber) {
+          @for (r of sortedRows(); track $index) {
             <tr>
               <td style="text-align:left"><span class="tag">{{ r.tool }}</span></td>
               <td style="text-align:left">{{ r.fam }}</td>
               <td style="text-align:left">{{ r.meter }}</td>
-              <td style="text-align:left;font-size:11px" class="dim">{{ r.partNumber }}</td>
+              <td style="text-align:left;font-size:11px" class="dim part-no" [attr.title]="r.partNumber || null">{{ r.partNumber }}</td>
               @for (v of r.vals; track $index) {
                 <td class="num" [class.z]="v === 0">{{ v === 0 ? '-' : fmtVal(v) }}</td>
               }
@@ -171,7 +189,8 @@ import { HorizontalBarsComponent } from '../charts/horizontal-bars.component';
     </div>
 
     <div class="note" style="margin-top:12px">
-      Los datos de modelos provienen del cruce entre el reporte de consumo Azure y la metadata de despliegues.
+      Hasta agosto 2026 los datos de modelos provienen del cruce entre el reporte de consumo Azure y la metadata de despliegues;
+      desde septiembre 2026 se obtienen de Azure Cost Management a nivel de meter.
       Las familias agrupan modelos con arquitectura común (GPT-4o, GPT-4o mini, etc.).
     </div>
   `,

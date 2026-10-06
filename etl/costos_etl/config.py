@@ -8,7 +8,7 @@ ETL_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = ETL_DIR.parent
 
 # Grupo de recursos (en minúsculas) → ambiente del tablero.
-# Editar aquí para agregar o mover grupos. "Modelos" no se calcula todavía.
+# Editar aquí para agregar o mover grupos. "Modelos" sale de MODEL_RGS (abajo).
 RG_ENV_MAP = {
     "rg_e_dev_aiuniandes": "Desarrollo",
     "rg_e_dev_aiuniandes_chatmigo": "Desarrollo",
@@ -17,6 +17,33 @@ RG_ENV_MAP = {
 }
 
 ENVIRONMENTS = ["Desarrollo", "QA", "Producción"]
+
+# Grupos de recursos de modelos de Foundry (Trans_Digital) → costos.json["models"] y general[*]["Modelos"].
+# Se consultan a nivel de meter; todo su costo (también alertas, storage...) cuenta como Modelos.
+MODEL_RGS = [
+    "rg-uniandes-ia-chatmigo-prod",
+    "rg-uniandes-ia-chatmigo-qa",
+    "rg-uniandes-ia-dsit",
+    "rg-uniandes-ia-educacion",
+    "rg-uniandes-ia-ingenieria",
+    "rg-uniandes-ia-isis",
+    "rg-uniandes-ia-plataforma",
+    "rg-uniandes-ia-vic",
+    "Uniandes-E-PRB-AI_Studio-RG",
+]
+
+# Unidad ("tool" en models): primera palabra clave contenida en "<grupo> <recurso>" en minúsculas.
+MODEL_TOOL_RULES = [
+    ("ingenieria", "Ingenieria"),
+    ("isis", "Otras Unidades"),
+    ("educacion", "Otras Unidades"),
+    ("dsit", "Otras Unidades"),
+]
+DEFAULT_TOOL = "ChatMigo"
+
+# Primer mes que el ETL escribe en models/Modelos. Los anteriores vienen del cruce manual con el
+# CSV de TransDigital (meta.august_source) y no se tocan.
+MODELS_FROM = (2026, 9)
 
 # El tablero solo soporta estos años (meta.status2026 / lastData2026 en costos.types.ts).
 SUPPORTED_YEAR = 2026

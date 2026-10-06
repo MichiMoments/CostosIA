@@ -2,7 +2,7 @@
 
 ## Source of Truth
 - The original dashboard is `tablero-costos-chatmigo.html` at the project root (`CostosIA/`)
-- Data lives in `src/assets/data/costos.json` and `ai-cache.json`, refreshed monthly by the ETL in `etl/` (`costos_etl`). The ETL only updates the months it processes and never touches `Modelos`/`models`
+- Data lives in `src/assets/data/costos.json` and `ai-cache.json`, refreshed monthly by the ETL in `etl/` (`costos_etl`). The ETL only updates the months it processes; it writes `models`/`Modelos` (meter-level, from the Foundry model RGs) only from Sep 2026 on
 - All CSS custom properties, colors, spacing, and fonts must match the original exactly
 
 ## Architecture Decisions

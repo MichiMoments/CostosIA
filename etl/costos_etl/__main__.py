@@ -15,7 +15,7 @@ from datetime import date
 
 import requests
 
-from . import ai_cache, extract, llm, merge, storage, transform
+from . import ai_cache, extract, llm, merge, models, storage, transform
 from .config import RG_ENV_MAP, Config, ConfigError
 
 EXIT_CONFIG, EXIT_EXTRACT, EXIT_AI = 2, 3, 4
@@ -43,7 +43,19 @@ def run(args: argparse.Namespace) -> int:
         resumen = " · ".join(f"{env} {d['total']:,.2f}" for env, d in envs.items())
         print(f"   {y}-{m:02d}: {resumen} USD")
 
+    filas_mod = models.extraer(cfg, desde, hasta)
+    print(f"Filas de modelos extraídas: {len(filas_mod)}")
+    por_mes_mod = models.agregar(filas_mod, meses, costos)
+    for (y, m), entradas in sorted(por_mes_mod.items()):
+        por_tool: dict[str, float] = {}
+        for e in entradas.values():
+            por_tool[e["tool"]] = por_tool.get(e["tool"], 0.0) + e["cost"]
+        resumen = " · ".join(f"{t} {c:,.2f}" for t, c in sorted(por_tool.items(), key=lambda x: -x[1])) or "sin filas"
+        print(f"   {y}-{m:02d} Modelos: {resumen} USD")
+
     nuevo, cambios = merge.fusionar(costos, por_mes, force_zeros=args.force_zeros)
+    nuevo, cambios_mod = merge.fusionar_modelos(nuevo, por_mes_mod, force_zeros=args.force_zeros)
+    cambios += cambios_mod
     print("Cambios en costos.json:" if cambios else "Sin cambios en costos.json.")
     for c in cambios:
         print(f"   {c}")
@@ -58,6 +70,8 @@ def run(args: argparse.Namespace) -> int:
     for y, m in meses:
         filas_mes = [f for f in filas if (f.year, f.month) == (y, m)]
         print(f"Escrito {store.write_raw(f'{y}-{m:02d}.csv', transform.a_csv(filas_mes))}")
+        filas_mod_mes = [f for f in filas_mod if models.mes_de(f) == (y, m)]
+        print(f"Escrito {store.write_raw(f'{y}-{m:02d}-models.csv', models.a_csv(filas_mod_mes))}")
     print(f"Escrito {store.write_json('costos.json', nuevo, compact=True)}")
     if cache:
         print(f"Escrito {store.write_json('ai-cache.json', cache)}")

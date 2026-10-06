@@ -1,4 +1,4 @@
-"""Exploración de costos de modelos a nivel de meter (paso previo a cargarlos en costos.json["models"]).
+"""Exploración de costos de modelos a nivel de meter (el ETL principal ya los carga en costos.json["models"]).
 
     python -m costos_etl.explore                           # último mes cerrado
     python -m costos_etl.explore --month 2026-09
@@ -9,7 +9,6 @@ Solo lee: escribe un CSV en <RAW_DIR>/explore/ e imprime un resumen. No toca cos
 
 import argparse
 import csv
-import re
 import sys
 from collections import defaultdict
 from datetime import date
@@ -18,44 +17,8 @@ import requests
 
 from . import extract, storage, transform
 from .__main__ import EXIT_CONFIG, EXIT_EXTRACT
-from .config import RG_ENV_MAP, Config, ConfigError
-
-# Grupos de recursos donde se consumen modelos de Foundry. Pendiente de decidir cómo
-# entran a costos.json["models"]; por eso no están en RG_ENV_MAP.
-MODEL_RGS = [
-    "rg-uniandes-ia-chatmigo-prod",
-    "rg-uniandes-ia-chatmigo-qa",
-    "rg-uniandes-ia-dsit",
-    "rg-uniandes-ia-educacion",
-    "rg-uniandes-ia-ingenieria",
-    "rg-uniandes-ia-isis",
-    "rg-uniandes-ia-plataforma",
-    "rg-uniandes-ia-vic",
-    "Uniandes-E-PRB-AI_Studio-RG",
-]
-
-GROUPING_DETALLE = [
-    "ResourceGroupName", "ResourceId", "ServiceName", "MeterCategory", "MeterSubcategory",
-    "Meter", "PartNumber", "ServiceFamily",
-]
-# Si la API no acepta tantas dimensiones: dos consultas unidas por (grupo, meter).
-GROUPING_A = ["ResourceGroupName", "ResourceId", "ServiceName", "Meter", "PartNumber"]
-GROUPING_B = ["ResourceGroupName", "Meter", "MeterCategory", "MeterSubcategory", "ServiceFamily"]
-
-COLUMNAS_CSV = ["Mes", "SubscriptionName", *GROUPING_DETALLE, "PreTaxCost", "Currency"]
-
-SERVICIOS_MODELO = {"foundry models", "saas"}
-METER_MODELO = re.compile(r"tokens?\b|claude", re.IGNORECASE)
-
-
-def es_modelo(fila: dict) -> bool:
-    """Heurística provisional: consumo de modelo vs costo adicional (alertas, storage...)."""
-    servicio = str(fila.get("ServiceName") or "").strip().lower()
-    return servicio in SERVICIOS_MODELO or bool(METER_MODELO.search(str(fila.get("Meter") or "")))
-
-
-def _costo(fila: dict) -> float:
-    return float(fila.get("PreTaxCost") or 0.0)
+from .config import MODEL_RGS, RG_ENV_MAP, Config, ConfigError
+from .models import COLUMNAS_CSV, costo as _costo, es_modelo, extraer, unidad
 
 
 def resumir(filas: list[dict], rgs: list[str]) -> dict:
@@ -82,30 +45,6 @@ def resumir(filas: list[dict], rgs: list[str]) -> dict:
         "otros": {rg: dict(v) for rg, v in otros.items()},
         "sin_filas": [rg for rg in rgs if rg.lower() not in con_filas],
     }
-
-
-def unir_pasadas(filas_a: list[dict], filas_b: list[dict]) -> list[dict]:
-    """Completa las filas de GROUPING_A con los atributos de meter de GROUPING_B."""
-    atributos = {}
-    for f in filas_b:
-        clave = (str(f.get("ResourceGroupName") or "").lower(), f.get("Meter"))
-        atributos[clave] = {k: f.get(k) for k in GROUPING_B if k not in ("ResourceGroupName", "Meter")}
-    return [{**atributos.get((str(f.get("ResourceGroupName") or "").lower(), f.get("Meter")), {}), **f} for f in filas_a]
-
-
-def _extraer(cfg: Config, desde: str, hasta: str, rgs: list[str]) -> list[dict]:
-    # El filtro "In" podría distinguir mayúsculas: se envían ambas variantes.
-    filtro = sorted({*rgs, *(rg.lower() for rg in rgs)})
-    try:
-        filas = extract.extraer_detalle(cfg, desde, hasta, filtro, GROUPING_DETALLE)
-        print(f"Modo: una consulta con {len(GROUPING_DETALLE)} dimensiones")
-        return filas
-    except extract.BadRequestError as e:
-        print(f"La API rechazó la agrupación completa ({e}). Usando dos consultas...")
-    filas_a = extract.extraer_detalle(cfg, desde, hasta, filtro, GROUPING_A)
-    filas_b = extract.extraer_detalle(cfg, desde, hasta, filtro, GROUPING_B)
-    print("Modo: dos consultas unidas por (grupo, meter)")
-    return unir_pasadas(filas_a, filas_b)
 
 
 def _imprimir(resumen: dict, costos: dict, year: int, month: int) -> None:
@@ -157,7 +96,7 @@ def run(args: argparse.Namespace) -> int:
     costos = storage.get_storage(cfg).read_json("costos.json")
 
     desde, hasta = transform.rango_iso([(year, month)])
-    filas = _extraer(cfg, desde, hasta, rgs)
+    filas = extraer(cfg, desde, hasta, rgs)
     print(f"Filas extraídas: {len(filas)}")
 
     destino = cfg.raw_dir / "explore" / f"{year}-{month:02d}-models.csv"
@@ -166,7 +105,7 @@ def run(args: argparse.Namespace) -> int:
         w = csv.DictWriter(f, fieldnames=COLUMNAS_CSV, extrasaction="ignore")
         w.writeheader()
         for fila in sorted(filas, key=lambda x: (str(x.get("ResourceGroupName")).lower(), -_costo(x))):
-            w.writerow({**fila, "Mes": f"{year}-{month:02d}"})
+            w.writerow({**fila, "Mes": f"{year}-{month:02d}", "Unidad": unidad(fila)})
     print(f"Escrito {destino}")
 
     _imprimir(resumir(filas, rgs), costos, year, month)
