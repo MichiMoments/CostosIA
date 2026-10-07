@@ -50,7 +50,7 @@ figcaption { color:var(--muted); font-size:.9rem; max-width:80ch; }
 
 svg text { font-family:var(--sans); fill:var(--text); font-size:12px; }
 svg .t { font-family:var(--disp); font-weight:600; font-size:14px; fill:var(--ink); }
-svg .m { font-family:var(--mono); font-size:11px; fill:var(--muted); }
+svg .m { font-family:var(--mono); font-size:11px; fill:var(--muted); white-space:pre; }
 svg .lab { font-size:11px; font-weight:500; }
 svg .bnd { fill:none; stroke:var(--muted); stroke-dasharray:5 4; stroke-width:1; }
 svg .bnd-lab { font-size:11px; letter-spacing:.08em; fill:var(--muted); font-weight:600; }
@@ -62,6 +62,8 @@ svg .req { stroke:var(--req); } svg .data { stroke:var(--data); } svg .build { s
 svg .dash { stroke-dasharray:6 4; }
 svg .l-req { fill:var(--req); } svg .l-data { fill:var(--data); } svg .l-build { fill:var(--build); } svg .l-sec { fill:var(--sec); }
 svg .knode-data { stroke:var(--data); } svg .knode-req { stroke:var(--req); }
+svg .sep { stroke:var(--line); stroke-width:1; }
+svg .halo { stroke:var(--surface); stroke-width:8; }
 
 /* Cards */
 .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:14px; }
@@ -89,13 +91,13 @@ pre { margin:0; background:var(--frame); border:1px solid var(--line); border-ra
 <div class="wrap">
   <header>
     <div class="eyebrow">Tablero de costos ChatMigo · Arquitectura de despliegue</div>
-    <h1>Despliegue en Azure Container Apps</h1>
-    <p>La app Angular corre como contenedor nginx. Los datos dejan de estar compilados en el bundle: un job mensual los escribe en Blob Storage y la app los lee al cargar. Actualizar datos ya no requiere reconstruir ni redesplegar.</p>
+    <h1>Despliegue en Azure: sitio estático, Function y Application Gateway</h1>
+    <p>El build de Angular se publica como sitio estático en una Storage Account, y una Azure Function expone la API que entrega los datos. El Application Gateway es la única entrada y enruta cada petición a uno de los dos. El Container Apps Environment queda solo para el job mensual que actualiza los datos. Actualizar datos ya no requiere reconstruir ni redesplegar.</p>
   </header>
 
   <figure>
     <div class="frame">
-      <svg viewBox="0 0 1180 590" role="img" aria-label="Diagrama de despliegue: el navegador llega por HTTPS al contenedor nginx costos-web, que sirve la app y hace proxy de /data a Blob Storage. Un job mensual costos-etl consulta la API de Cost Management y Kimi (mediante LLMHub), lee secretos de Key Vault y escribe los JSON en Blob Storage. Un pipeline de Azure DevOps publica las imágenes en Azure Container Registry, de donde ambos contenedores las descargan. costos-web solo está disponible en horario laboral.">
+      <svg viewBox="0 0 1225 650" role="img" aria-label="Diagrama de despliegue: el navegador llega por HTTPS al Application Gateway. El gateway enruta / y los archivos estáticos al sitio estático ($web) de la Storage Account, y /api/* a la Function costos-api, que lee los JSON del contenedor privado data/. Un Container Apps Job mensual, costos-etl, consulta la API de Cost Management y Kimi (mediante LLMHub), lee secretos de Key Vault y escribe los JSON y el CSV en la Storage Account. Azure DevOps sube el build de Angular a $web, publica la Function y deja la imagen del job en Azure Container Registry.">
         <defs>
           <marker id="a-req" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="l-req"/></marker>
           <marker id="a-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="l-data"/></marker>
@@ -104,93 +106,112 @@ pre { margin:0; background:var(--frame); border:1px solid var(--line); border-ra
         </defs>
 
         <!-- Boundaries -->
-        <rect class="bnd" x="230" y="22" width="700" height="548" rx="12"/>
-        <text class="bnd-lab" x="246" y="44">AZURE · nuevo-grupo-recursos</text>
-        <rect class="bnd" x="252" y="60" width="360" height="380" rx="10"/>
-        <text class="bnd-lab" x="268" y="81">CONTAINER APPS ENVIRONMENT</text>
+        <rect class="bnd" x="220" y="22" width="780" height="618" rx="12"/>
+        <text class="bnd-lab" x="236" y="44">AZURE · nuevo-grupo-recursos</text>
+        <rect class="bnd" x="250" y="340" width="500" height="200" rx="10"/>
+        <text class="bnd-lab" x="266" y="361">CONTAINER APPS ENVIRONMENT · JOBS</text>
 
         <!-- External left -->
-        <rect class="ext" x="20" y="95" width="170" height="70" rx="8"/>
-        <text class="t" x="36" y="122">Navegador</text>
-        <text class="m" x="36" y="142">/resumen /ambiente</text>
-        <text class="m" x="36" y="156">/comparativa /modelos</text>
+        <rect class="ext" x="20" y="90" width="170" height="70" rx="8"/>
+        <text class="t" x="36" y="117">Navegador</text>
+        <text class="m" x="36" y="137">/resumen /ambiente</text>
+        <text class="m" x="36" y="151">/comparativa /modelos</text>
 
-        <rect class="ext" x="20" y="475" width="170" height="70" rx="8"/>
-        <text class="t" x="36" y="502">Azure DevOps</text>
-        <text class="m" x="36" y="522">Pipeline: push a main →</text>
-        <text class="m" x="36" y="536">ng build + docker build</text>
+        <rect class="ext" x="20" y="545" width="170" height="85" rx="8"/>
+        <text class="t" x="36" y="570">Azure DevOps</text>
+        <text class="m" x="36" y="590">ng build → $web</text>
+        <text class="m" x="36" y="605">api/ → Function</text>
+        <text class="m" x="36" y="620">etl/ → imagen ACR</text>
 
-        <!-- costos-web -->
-        <rect class="node key knode-req" x="275" y="95" width="310" height="128" rx="8"/>
-        <text class="t" x="291" y="120">Container App · costos-web</text>
-        <text class="m" x="291" y="141">nginx:alpine + dist/costos/browser</text>
-        <text class="m" x="291" y="162">/        → try_files … /index.html</text>
-        <text class="m" x="291" y="179">/data/*  → proxy a Blob (SAS lectura)</text>
-        <text class="m" x="291" y="196">ingress HTTPS · Entra ID opcional</text>
-        <text class="m" x="291" y="213">horario laboral · L–V 7:00–19:00 COT</text>
+        <!-- Application Gateway -->
+        <rect class="node key knode-req" x="250" y="80" width="210" height="130" rx="8"/>
+        <text class="t" x="266" y="105">Application Gateway</text>
+        <text class="m" x="266" y="126">listener HTTPS · WAF</text>
+        <text class="m" x="266" y="148">/*      → static website</text>
+        <text class="m" x="266" y="164">/api/*  → costos-api</text>
+        <text class="m" x="266" y="186">DNS equipoingenieria.…</text>
 
-        <!-- costos-etl -->
-        <rect class="node key knode-data" x="275" y="300" width="310" height="120" rx="8"/>
-        <text class="t" x="291" y="325">Container Apps Job · costos-etl</text>
-        <text class="m" x="291" y="346">python:3.12-slim + scripts/</text>
-        <text class="m" x="291" y="364">cron 0 6 2 * *  (día 2 de cada mes)</text>
-        <text class="m" x="291" y="386">1 excelGet.py</text>
-        <text class="m" x="291" y="401">2 update_costos_json.py</text>
-        <text class="m" x="440" y="386">3 generate_ai_cache.py</text>
+        <!-- Function -->
+        <rect class="node key knode-req" x="520" y="170" width="210" height="120" rx="8"/>
+        <text class="t" x="536" y="195">Function · costos-api</text>
+        <text class="m" x="536" y="216">GET /api/costos</text>
+        <text class="m" x="536" y="232">GET /api/ai-cache</text>
+        <text class="m" x="536" y="254">endpoints · services ·</text>
+        <text class="m" x="536" y="270">schemas · models · utils</text>
 
         <!-- Storage -->
-        <rect class="node key knode-data" x="700" y="95" width="210" height="140" rx="8"/>
-        <text class="t" x="716" y="120">Storage Account</text>
-        <text class="m" x="716" y="143">data/  costos.json</text>
-        <text class="m" x="716" y="159">       ai-cache.json</text>
-        <text class="m" x="716" y="175">       versionado activo</text>
-        <text class="m" x="716" y="199">raw/   CSV mensual</text>
-        <text class="m" x="716" y="215">       (histórico)</text>
+        <rect class="node key knode-data" x="790" y="80" width="180" height="230" rx="8"/>
+        <text class="t" x="806" y="105">Storage Account</text>
+        <text class="m" x="806" y="126">$web/  index.html</text>
+        <text class="m" x="806" y="142">       *.js · *.css</text>
+        <text class="m" x="806" y="158">       static website</text>
+        <line class="sep" x1="800" y1="172" x2="960" y2="172"/>
+        <text class="m" x="806" y="192">data/  costos.json</text>
+        <text class="m" x="806" y="208">       ai-cache.json</text>
+        <text class="m" x="806" y="224">       versionado activo</text>
+        <text class="m" x="806" y="248">raw/   CSV mensual</text>
+        <text class="m" x="806" y="264">       (histórico)</text>
+        <text class="m" x="806" y="290">data/ y raw/ privados</text>
+
+        <!-- costos-etl -->
+        <rect class="node key knode-data" x="275" y="380" width="450" height="135" rx="8"/>
+        <text class="t" x="291" y="405">Container Apps Job · costos-etl</text>
+        <text class="m" x="291" y="426">python:3.11-slim · python -m costos_etl</text>
+        <text class="m" x="291" y="444">cron 0 6 2 * *  (día 2 de cada mes)</text>
+        <text class="m" x="291" y="466">1 extract  2 merge  3 ai_cache  4 escribe</text>
+        <text class="m" x="291" y="484">llm.py → LLMHub · keyvault.py</text>
 
         <!-- Key Vault -->
-        <rect class="node" x="700" y="450" width="210" height="80" rx="8"/>
-        <text class="t" x="716" y="475">Key Vault</text>
-        <text class="m" x="716" y="496">AZURE_CLIENT_SECRET</text>
-        <text class="m" x="716" y="512">KIMI_API_KEY</text>
+        <rect class="node" x="790" y="560" width="180" height="70" rx="8"/>
+        <text class="t" x="806" y="585">Key Vault</text>
+        <text class="m" x="806" y="606">AZURE_CLIENT_SECRET</text>
+        <text class="m" x="806" y="621">clave + endpoint LLM</text>
 
         <!-- ACR -->
-        <rect class="node" x="275" y="470" width="210" height="80" rx="8"/>
-        <text class="t" x="291" y="495">Container Registry</text>
-        <text class="m" x="291" y="516">costos-web:&lt;sha&gt;</text>
-        <text class="m" x="291" y="532">costos-etl:&lt;sha&gt;</text>
+        <rect class="node" x="250" y="565" width="210" height="65" rx="8"/>
+        <text class="t" x="266" y="590">Container Registry</text>
+        <text class="m" x="266" y="611">costos-etl:&lt;sha&gt;</text>
 
         <!-- External right -->
-        <rect class="ext" x="970" y="290" width="190" height="60" rx="8"/>
-        <text class="t" x="986" y="315">Cost Management API</text>
-        <text class="m" x="986" y="334">management.azure.com</text>
-        <rect class="ext" x="970" y="370" width="190" height="60" rx="8"/>
-        <text class="t" x="986" y="395">Kimi API</text>
-        <text class="m" x="986" y="414">Moonshot AI · vía LLMHub</text>
+        <rect class="ext" x="1030" y="395" width="185" height="55" rx="8"/>
+        <text class="t" x="1046" y="419">Cost Management API</text>
+        <text class="m" x="1046" y="438">management.azure.com</text>
+        <rect class="ext" x="1030" y="465" width="185" height="55" rx="8"/>
+        <text class="t" x="1046" y="489">Kimi API</text>
+        <text class="m" x="1046" y="508">Moonshot AI · vía LLMHub</text>
 
         <!-- Request path (blue) -->
-        <line class="f req" x1="190" y1="130" x2="272" y2="130" marker-end="url(#a-req)"/>
-        <text class="lab l-req" x="211" y="122" text-anchor="middle">HTTPS</text>
-        <line class="f req" x1="585" y1="150" x2="697" y2="150" marker-end="url(#a-req)"/>
-        <text class="lab l-req" x="641" y="142" text-anchor="middle">GET /data/*</text>
+        <line class="f req" x1="190" y1="125" x2="247" y2="125" marker-end="url(#a-req)"/>
+        <text class="lab l-req" x="212" y="117">HTTPS</text>
+        <line class="f req" x1="460" y1="120" x2="787" y2="120" marker-end="url(#a-req)"/>
+        <text class="lab l-req" x="623" y="112" text-anchor="middle">/  y estáticos</text>
+        <line class="f req" x1="460" y1="190" x2="517" y2="190" marker-end="url(#a-req)"/>
+        <text class="lab l-req" x="490" y="182" text-anchor="middle">/api/*</text>
+        <line class="f req" x1="730" y1="205" x2="787" y2="205" marker-end="url(#a-req)"/>
+        <text class="lab l-req" x="759" y="197" text-anchor="middle">lee JSON</text>
 
         <!-- Data path (green) -->
-        <line class="f data" x1="585" y1="320" x2="967" y2="320" marker-end="url(#a-data)"/>
-        <text class="lab l-data" x="776" y="312" text-anchor="middle">consulta costos (service principal)</text>
-        <line class="f data" x1="585" y1="400" x2="967" y2="400" marker-end="url(#a-data)"/>
-        <text class="lab l-data" x="776" y="392" text-anchor="middle">genera análisis IA (LLMHub)</text>
-        <path class="f data" d="M470 300 V262 H805 V238" marker-end="url(#a-data)"/>
-        <text class="lab l-data" x="640" y="256" text-anchor="middle">escribe JSON + CSV</text>
+        <line class="f data" x1="725" y1="420" x2="1027" y2="420" marker-end="url(#a-data)"/>
+        <text class="lab l-data" x="876" y="412" text-anchor="middle">consulta costos (service principal)</text>
+        <line class="f data" x1="725" y1="490" x2="1027" y2="490" marker-end="url(#a-data)"/>
+        <text class="lab l-data" x="876" y="482" text-anchor="middle">genera análisis IA (LLMHub)</text>
+        <path class="f data" d="M700 380 V328 H880 V313" marker-end="url(#a-data)"/>
+        <text class="lab l-data" x="692" y="357" text-anchor="end">escribe JSON + CSV</text>
 
         <!-- Secrets (amber) -->
-        <path class="f sec" d="M698 490 H530 V423" marker-end="url(#a-sec)"/>
-        <text class="lab l-sec" x="614" y="482" text-anchor="middle">secretos (identidad administrada)</text>
+        <path class="f sec" d="M788 590 H600 V518" marker-end="url(#a-sec)"/>
+        <text class="lab l-sec" x="694" y="582" text-anchor="middle">secretos (SP + LLM)</text>
 
-        <!-- Build (purple) -->
-        <line class="f build" x1="190" y1="510" x2="272" y2="510" marker-end="url(#a-build)"/>
-        <text class="lab l-build" x="211" y="502" text-anchor="middle">push</text>
-        <line class="f build dash" x1="330" y1="468" x2="330" y2="423" marker-end="url(#a-build)"/>
-        <text class="lab l-build" x="338" y="452">pull</text>
-        <path class="f build dash" d="M290 468 V448 H264 V180 H272" marker-end="url(#a-build)"/>
+        <!-- Build (purple); the halo breaks the HTTPS arrow where the bus crosses it -->
+        <line class="halo" x1="205" y1="117" x2="205" y2="133"/>
+        <path class="f build" d="M190 560 H205 V58 H880 V77" marker-end="url(#a-build)"/>
+        <text class="lab l-build" x="623" y="52" text-anchor="middle">upload-batch → $web</text>
+        <path class="f build" d="M205 320 H625 V293" marker-end="url(#a-build)"/>
+        <text class="lab l-build" x="415" y="313" text-anchor="middle">func publish</text>
+        <line class="f build" x1="190" y1="600" x2="247" y2="600" marker-end="url(#a-build)"/>
+        <text class="lab l-build" x="220" y="592" text-anchor="middle">push</text>
+        <line class="f build dash" x1="330" y1="563" x2="330" y2="518" marker-end="url(#a-build)"/>
+        <text class="lab l-build" x="338" y="557">pull</text>
       </svg>
     </div>
     <div class="legend" aria-hidden="true">
@@ -199,7 +220,7 @@ pre { margin:0; background:var(--frame); border:1px solid var(--line); border-ra
       <span><i style="color:var(--build)"></i>Build y despliegue de código</span>
       <span><i style="color:var(--sec)"></i>Secretos</span>
     </div>
-    <figcaption>El navegador solo habla con <code>costos-web</code>. Los JSON viven en Blob Storage y llegan a la app por el proxy <code>/data/*</code> de nginx, así el blob sigue privado y no hace falta CORS. El código y los datos tienen ciclos separados: Azure DevOps publica imágenes y el job mensual publica datos. <code>costos-web</code> solo atiende en horario laboral; fuera de él escala a 0 réplicas.</figcaption>
+    <figcaption>El navegador solo habla con el Application Gateway. Sus reglas por ruta mandan <code>/</code> y los archivos estáticos al sitio estático (<code>$web</code>) y <code>/api/*</code> a <code>costos-api</code>. Todo queda bajo un mismo dominio, así que no hace falta CORS. Los JSON viven en el contenedor privado <code>data/</code> y solo la Function los lee, con identidad administrada. El código y los datos tienen ciclos separados: Azure DevOps publica el front, la API y la imagen del job, y el job mensual publica los datos. Sin contenedor web ya no hace falta la política de horario laboral: el sitio estático y una Function en plan de consumo casi no cuestan en reposo.</figcaption>
   </figure>
 
   <section>
@@ -207,61 +228,48 @@ pre { margin:0; background:var(--frame); border:1px solid var(--line); border-ra
     <p class="note">Aún no están implementados. Hoy <code>data.service.ts</code> importa los JSON de forma estática, por lo que quedan dentro del bundle.</p>
     <div class="changes">
       <div class="card">
-        <h3>DataService lee en tiempo de ejecución</h3>
+        <h3>DataService lee la API en tiempo de ejecución</h3>
         <pre>// src/app/core/data.service.ts
 - import costosData from '../../assets/data/costos.json';
 - import aiCacheData from '../../assets/data/ai-cache.json';
-+ readonly costos  = httpResource&lt;CostosData&gt;(() =&gt; '/data/costos.json');
-+ readonly aiCache = httpResource&lt;AiCache&gt;(() =&gt; '/data/ai-cache.json');</pre>
-        <p>Los <code>computed()</code> existentes leen <code>costos.value()</code>, y las vistas muestran un estado de carga mientras llega. En desarrollo, <code>proxy.conf.json</code> apunta <code>/data</code> a <code>src/assets/data</code>.</p>
++ readonly costos  = httpResource&lt;CostosData&gt;(() =&gt; '/api/costos');
++ readonly aiCache = httpResource&lt;AiCache&gt;(() =&gt; '/api/ai-cache');</pre>
+        <p>Los <code>computed()</code> existentes leen <code>costos.value()</code>, y las vistas muestran un estado de carga mientras llega. En desarrollo, <code>proxy.conf.json</code> apunta <code>/api</code> a la Function local (<code>func start</code>, puerto 7071).</p>
       </div>
       <div class="card">
-        <h3>nginx.conf de costos-web</h3>
-        <pre># /etc/nginx/templates/default.conf.template
-location / {
-  try_files $uri $uri/ /index.html;
-}
-location /data/ {
-  rewrite ^/data/(.*)$ /data/$1?${DATA_SAS} break;
-  proxy_pass https://${STORAGE_ACCOUNT}.blob.core.windows.net;
-  proxy_set_header Host ${STORAGE_ACCOUNT}.blob.core.windows.net;
-  proxy_ssl_server_name on;
-  add_header Cache-Control "no-cache";
-}</pre>
-        <p>La imagen <code>nginx:alpine</code> sustituye <code>STORAGE_ACCOUNT</code> y <code>DATA_SAS</code> al arrancar. <code>no-cache</code> en <code>/data/</code> hace que el mes nuevo se vea de inmediato, y los assets con hash se cachean un año.</p>
+        <h3>Reglas del Application Gateway</h3>
+        <pre># regla path-based del listener HTTPS
+backend pools:
+  static: &lt;account&gt;.z13.web.core.windows.net
+  api:    costos-api.azurewebsites.net
+url path map:
+  /api/*  → api     (host header del backend)
+  default → static  (host header del backend)</pre>
+        <p>Las rutas de Angular (<code>/resumen</code>, <code>/modelos</code>…) no existen como archivos. En el sitio estático, <code>index.html</code> se configura también como documento de error 404, así un enlace directo carga la app y el router de Angular resuelve la vista.</p>
+      </div>
+      <div class="card">
+        <h3>Function costos-api</h3>
+        <ul>
+          <li>Estructura: <code>endpoints/</code>, <code>modules/</code>, <code>services/</code>, <code>models/</code>, <code>schemas/</code>, <code>exceptions/</code>, <code>constants/</code>, <code>utils/</code>.</li>
+          <li><code>GET /api/costos</code> y <code>GET /api/ai-cache</code> leen el blob de <code>data/</code> con <code>DefaultAzureCredential</code> (identidad administrada con rol de lectura de blobs).</li>
+          <li>Responde con <code>Cache-Control: no-cache</code> para que el mes nuevo se vea de inmediato. Los assets con hash de <code>$web</code> se cachean un año.</li>
+        </ul>
       </div>
       <div class="card">
         <h3>Kimi mediante LLMHub en costos-etl</h3>
         <ul>
-          <li>El contenedor del job instala la librería <strong>LLMHub</strong> (en <code>scripts/requirements.txt</code>) y accede a la API de Kimi a través de ella.</li>
-          <li><code>generate_ai_cache.py</code> deja de llamar por <code>requests</code> al endpoint de Gemini y pide los 15 análisis a Kimi por LLMHub.</li>
-          <li><code>KIMI_API_KEY</code> reemplaza a <code>GEMINI_API_KEY</code>: vive en Key Vault y llega al job como variable de entorno.</li>
+          <li>La imagen del job instala <code>requirements.txt</code> y <code>requirements-llmhub.txt</code>. <code>llmhub_uniandes</code> sale del feed privado de Azure Artifacts.</li>
+          <li><code>etl/costos_etl/llm.py</code> pide los 15 análisis a Kimi a través de LLMHub (<code>LLM_PROVIDER=llmhub</code>).</li>
+          <li><code>keyvault.py</code> lee la clave y el endpoint del modelo en Key Vault por nombre de secreto (<code>LLM_SECRET_API_KEY</code>, <code>LLM_SECRET_ENDPOINT</code>).</li>
         </ul>
-      </div>
-      <div class="card">
-        <h3>Política de horario laboral en costos-web</h3>
-        <pre># scale de la Container App costos-web
-minReplicas: 0
-maxReplicas: 2
-rules:
-  - name: horario-laboral
-    custom:
-      type: cron
-      metadata:
-        timezone: America/Bogota
-        start: "0 7 * * 1-5"
-        end:   "0 19 * * 1-5"
-        desiredReplicas: "1"</pre>
-        <p>Solo se define la regla cron, sin la regla HTTP. Fuera de horario la app queda en 0 réplicas y no responde, y tampoco genera costo de cómputo. Ajusta las horas al horario laboral real.</p>
       </div>
       <div class="card">
         <h3>Archivos nuevos</h3>
         <ul>
-          <li><code>Dockerfile</code> (node build → nginx)</li>
-          <li><code>nginx.conf.template</code></li>
-          <li><code>scripts/Dockerfile</code> + <code>requirements.txt</code></li>
-          <li><code>azure-pipelines.yml</code> (build, push a ACR y despliegue)</li>
-          <li>Scripts: escribir a Blob con <code>azure-storage-blob</code></li>
+          <li><code>api/</code>: proyecto de la Function <code>costos-api</code></li>
+          <li><code>etl/Dockerfile</code> para el job <code>costos-etl</code></li>
+          <li><code>proxy.conf.json</code> para desarrollo local</li>
+          <li><code>azure-pipelines.yml</code>: <code>ng build</code> y <code>az storage blob upload-batch -d '$web'</code>, despliegue de la Function, e imagen del ETL a ACR</li>
         </ul>
       </div>
     </div>
@@ -276,8 +284,9 @@ rules:
         <h3>Recursos</h3>
         <ul>
           <li>El grupo de recursos.</li>
-          <li>Una Storage Account.</li>
-          <li>Una Function que enmascare o intermedie el acceso a la Storage Account.</li>
+          <li>Una Storage Account con static website habilitado (<code>$web</code>) y los contenedores privados <code>data/</code> y <code>raw/</code>.</li>
+          <li>Una Function App que intermedie el acceso a la Storage Account.</li>
+          <li>Un Application Gateway con las reglas de enrutamiento hacia el front y la API.</li>
         </ul>
       </div>
       <div class="card">
@@ -285,6 +294,7 @@ rules:
         <h3>Container Apps Jobs</h3>
         <ul>
           <li>Abrir un caso para solicitar Container Apps Jobs.</li>
+          <li>El Container Apps Environment solo aloja el job <code>costos-etl</code>; ya no hay Container App web.</li>
           <li>La Storage Account guarda lo que generen los jobs.</li>
         </ul>
       </div>
@@ -294,7 +304,7 @@ rules:
         <ul>
           <li>Abrir un caso para el DNS del sitio.</li>
           <li>Nombre: <code>equipoingenieria.…</code> <em>(dominio por confirmar)</em>.</li>
-          <li>Debe apuntar a la aplicación o al gateway de producción.</li>
+          <li>Debe apuntar al Application Gateway, que lleva el certificado TLS.</li>
         </ul>
       </div>
     </div>
